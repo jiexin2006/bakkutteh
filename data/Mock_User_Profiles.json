@@ -1,0 +1,44 @@
+{
+  "users": [
+    {
+      "user_id": "U001",
+      "persona": "The Struggling Student",
+      "age": 21,
+      "monthly_salary_rm": 1200,
+      "fixed_liabilities_rm": 800,
+      "current_surplus_rm": 100,
+      "epf_balance_rm": 500,
+      "risk_appetite": "High"
+    },
+    {
+      "user_id": "U002",
+      "persona": "The Fresh Graduate",
+      "age": 24,
+      "monthly_salary_rm": 3500,
+      "fixed_liabilities_rm": 2000,
+      "current_surplus_rm": 500,
+      "epf_balance_rm": 8000,
+      "risk_appetite": "Medium"
+    },
+    {
+      "user_id": "U003",
+      "persona": "The Stable Earner (Low Savings)",
+      "age": 35,
+      "monthly_salary_rm": 5000,
+      "fixed_liabilities_rm": 4000,
+      "current_surplus_rm": 200,
+      "epf_balance_rm": 15000,
+      "risk_appetite": "Low"
+    },
+    {
+      "user_id": "U004",
+      "persona": "The Ideal Target",
+      "age": 28,
+      "monthly_salary_rm": 4200,
+      "fixed_liabilities_rm": 2500,
+      "current_surplus_rm": 800,
+      "epf_balance_rm": 35000,
+      "risk_appetite": "Medium"
+    }
+  ]
+}
