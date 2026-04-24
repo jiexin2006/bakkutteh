@@ -1,4 +1,4 @@
-import { useNavigate } from "react-router";
+import { useLocation, useNavigate } from "react-router";
 import { motion } from "motion/react";
 import {
   ArrowLeft,
@@ -9,6 +9,7 @@ import {
   Coins,
   Sparkles,
 } from "lucide-react";
+import type { AdvisoryAction, AdvisoryResponse } from "../lib/api";
 
 const allocations = [
   {
@@ -83,7 +84,64 @@ const strategies = [
 ];
 
 export function AIAdvisory() {
+  const location = useLocation();
   const navigate = useNavigate();
+  const advisoryResponse = location.state?.advisoryResponse as AdvisoryResponse | undefined;
+
+  const modelActions: AdvisoryAction[] = advisoryResponse?.advisory_json?.action_plan || [];
+  const modelAllocations = modelActions
+    .map((item) => {
+      const percentage = Number.parseFloat(item.percentage.replace("%", "").trim());
+      if (Number.isNaN(percentage)) {
+        return null;
+      }
+      return {
+        category: item.category,
+        amount: Math.round((500000 * percentage) / 100),
+        percentage,
+      };
+    })
+    .filter((item): item is { category: string; amount: number; percentage: number } => item !== null);
+
+  const displayAllocations = modelAllocations.length
+    ? modelAllocations.map((item) => {
+        const palette = item.category.toLowerCase().includes("epf")
+          ? { icon: Target, color: "#3EFFA3", bgColor: "rgba(62, 255, 163, 0.1)" }
+          : item.category.toLowerCase().includes("fd")
+          ? { icon: Shield, color: "#00D4FF", bgColor: "rgba(0, 212, 255, 0.1)" }
+          : { icon: Coins, color: "#FFD700", bgColor: "rgba(255, 215, 0, 0.1)" };
+
+        return {
+          ...item,
+          ...palette,
+        };
+      })
+    : allocations;
+
+  const displayStrategies = modelActions.length
+    ? modelActions.map((action, index) => {
+        const gradients = [
+          "from-[#00D4FF] to-[#00A3CC]",
+          "from-[#B794F6] to-[#FFD700]",
+          "from-[#3EFFA3] to-[#00CC7A]",
+        ];
+
+        const icon = action.category.toLowerCase().includes("epf")
+          ? Target
+          : action.category.toLowerCase().includes("fd")
+          ? Shield
+          : Coins;
+
+        return {
+          priority: `${index + 1} Priority`,
+          title: `${action.category}: ${action.percentage}`,
+          description: action.action,
+          reasoning: [action.reasoning],
+          icon,
+          gradient: gradients[index % gradients.length],
+        };
+      })
+    : strategies;
 
   return (
     <motion.div
@@ -135,7 +193,7 @@ export function AIAdvisory() {
                 <h2 className="text-2xl text-[#E8EDF3]">Allocated Amounts</h2>
               </div>
               <div className="space-y-4">
-                {allocations.map((allocation, index) => (
+                {displayAllocations.map((allocation, index) => (
                   <motion.div
                     key={allocation.category}
                     initial={{ y: 20, opacity: 0 }}
@@ -189,7 +247,7 @@ export function AIAdvisory() {
                 <p className="text-3xl text-[#E8EDF3]">₹5,00,000</p>
                 <div className="mt-3 flex items-center gap-2 text-[#3EFFA3] text-sm">
                   <TrendingUp className="w-4 h-4" />
-                  <span>Expected Annual Return: 9.2%</span>
+                  <span>{advisoryResponse?.advisory_json?.overall_strategy || "Expected Annual Return: 9.2%"}</span>
                 </div>
               </div>
             </div>
@@ -205,11 +263,21 @@ export function AIAdvisory() {
               <div className="backdrop-blur-xl bg-[rgba(30,34,42,0.4)] border border-[rgba(255,255,255,0.1)] rounded-2xl p-6 shadow-2xl">
                 <h2 className="text-2xl text-[#E8EDF3] mb-2">AI Reasoning</h2>
                 <p className="text-[#8B92A8] text-sm mb-6">
-                  Strategic allocation optimized for risk-adjusted returns
+                  {advisoryResponse?.advisory_json?.safety_gauge
+                    ? `Safety Gauge: ${advisoryResponse.advisory_json.safety_gauge}`
+                    : "Strategic allocation optimized for risk-adjusted returns"}
                 </p>
+                {advisoryResponse?.advisory_source === "fallback" && (
+                  <div className="rounded-lg border border-[#FFD70066] bg-[rgba(255,215,0,0.08)] px-4 py-3 text-[#FFD700] text-sm">
+                    <p className="font-semibold">Fallback Active: TEMPORARY_FALLBACK</p>
+                    <p className="mt-1 text-[#F6E7A8]">
+                      Live ZAI response failed. Displaying temporary fallback strategy.
+                    </p>
+                  </div>
+                )}
               </div>
 
-              {strategies.map((strategy, index) => (
+              {displayStrategies.map((strategy, index) => (
                 <motion.div
                   key={strategy.priority}
                   initial={{ y: 30, opacity: 0 }}
@@ -255,6 +323,13 @@ export function AIAdvisory() {
                   </div>
                 </motion.div>
               ))}
+
+              {advisoryResponse?.advisory_json?.next_step && (
+                <div className="backdrop-blur-xl bg-[rgba(30,34,42,0.4)] border border-[rgba(255,255,255,0.1)] rounded-2xl p-6 shadow-2xl">
+                  <h3 className="text-lg text-[#E8EDF3] mb-2">Next Step</h3>
+                  <p className="text-[#8B92A8]">{advisoryResponse.advisory_json.next_step}</p>
+                </div>
+              )}
             </div>
           </motion.div>
         </div>

@@ -15,3 +15,8 @@
 # - numpy: For advanced statistical analysis (future feature)
 # - pandas: For data export/reporting (future feature)
 # - requests: For live market data fetching (future feature)
+
+# API dependencies
+fastapi
+uvicorn
+python-dotenv

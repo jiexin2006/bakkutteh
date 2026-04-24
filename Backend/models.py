@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 # Data Models for AI Financial Intelligence Advisor
 
 from dataclasses import dataclass
@@ -19,27 +21,12 @@ class EPFStatus(Enum):
     BEHIND = "BEHIND"
     WAY_BEHIND = "WAY_BEHIND"
 
-
-@dataclass
-class UserProfile:
-    """User's financial profile"""
-    age: int
-    monthly_salary: float
-    monthly_expenditure: float
-    current_epf_balance: float
-    fixed_liabilities: float  # e.g., loans, rent commitments
-    risk_appetite: str  # "Conservative", "Moderate", "Aggressive"
+class RETIREMENT_TIER(Enum):
+    """Retirement tiers for EPF targets"""
+    BASIC = "BASIC"
+    ADEQUATE = "ADEQUATE"
+    ENHANCED = "ENHANCED"
     
-    @property
-    def monthly_surplus(self) -> float:
-        """Calculate monthly surplus after expenses and liabilities"""
-        return self.monthly_salary - self.monthly_expenditure - self.fixed_liabilities
-    
-    @property
-    def annual_surplus(self) -> float:
-        """Annual surplus"""
-        return self.monthly_surplus * 12
-
 
 @dataclass
 class MarketData:
@@ -107,28 +94,7 @@ class FinancialRecommendation:
     
     # Explanation
     reasoning: str
-    
     timestamp: datetime
 
 
-@dataclass
-class ProjectionScenario:
-    """Scenario for financial projection"""
-    scenario_name: str  # "Conservative", "Moderate", "Bullish"
-    fd_annual_return: float  # %
-    epf_annual_return: float  # %
-    crypto_annual_return: float  # %
-    likelihood: float  # 0.0 to 1.0
-    
-    def calculate_portfolio_growth(
-        self, 
-        fd_amount: float, 
-        epf_amount: float, 
-        crypto_amount: float, 
-        months: int
-    ) -> float:
-        """Calculate portfolio value after given months under this scenario"""
-        fd_value = fd_amount * (1 + self.fd_annual_return / 100) ** (months / 12)
-        epf_value = epf_amount * (1 + self.epf_annual_return / 100) ** (months / 12)
-        crypto_value = crypto_amount * (1 + self.crypto_annual_return / 100) ** (months / 12)
-        return fd_value + epf_value + crypto_value
+from userProfile import UserProfile

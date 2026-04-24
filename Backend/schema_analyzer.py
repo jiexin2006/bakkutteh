@@ -5,8 +5,8 @@ from pathlib import Path
 import json
 from typing import Any
 
-from Backend.epf_calculator import EPFCalculator
-from Backend.models import UserProfile
+from epf_calculator import EPFCalculator
+from models import UserProfile
 
 
 class SchemaValidationError(ValueError):
@@ -195,7 +195,7 @@ def analyze_user_payload(payload: dict[str, Any]) -> dict[str, Any]:
     risk_appetite = str(payload["risk_appetite"])
 
     monthly_surplus_rm = monthly_salary_rm - fixed_liabilities_rm
-    target_epf_level = EPFCalculator.normalize_target_tier(target_retirement_tier)
+    target_epf_level = EPFCalculator.normalize_target_tier(target_retirement_tier).value.lower()
 
     user_profile = UserProfile(
         age=age,
@@ -209,10 +209,6 @@ def analyze_user_payload(payload: dict[str, Any]) -> dict[str, Any]:
     epf_report = EPFCalculator.generate_epf_report(
         user_profile=user_profile,
         target_retirement_tier=target_retirement_tier,
-    )
-    surplus_parking = EPFCalculator.recommend_surplus_parking(
-        monthly_surplus_rm=monthly_surplus_rm,
-        deficit_percentage=float(epf_report["deficit_percentage"]),
     )
 
     return {
@@ -228,24 +224,11 @@ def analyze_user_payload(payload: dict[str, Any]) -> dict[str, Any]:
             "risk_appetite": risk_appetite,
             "monthly_surplus_rm": monthly_surplus_rm,
             "epf_analysis": {
-                "basic_target_rm": epf_report["basic_target_rm"],
-                "adequate_target_rm": epf_report["adequate_target_rm"],
-                "enhanced_target_rm": epf_report["enhanced_target_rm"],
                 "selected_target_rm": epf_report["selected_target_rm"],
                 "deficit_rm": epf_report["deficit_rm"],
                 "deficit_percentage": epf_report["deficit_percentage"],
                 "status": epf_report["status"],
                 "priority_level": epf_report["priority_level"],
-                "status_enum": epf_report["status_enum"],
-            },
-            "surplus_parking_strategy": {
-                "strategy": surplus_parking["strategy"],
-                "fd_eligible": surplus_parking["fd_eligible"],
-                "bitcoin_eligible": surplus_parking["bitcoin_eligible"],
-                "epf_amount_rm": surplus_parking["epf_amount_rm"],
-                "savings_amount_rm": surplus_parking["savings_amount_rm"],
-                "reason": surplus_parking["reason"],
-                "risk_note": surplus_parking["risk_note"],
             },
         },
     }

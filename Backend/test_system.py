@@ -3,46 +3,101 @@
 Test script to verify the AI Financial Intelligence Advisor system
 """
 
+from __future__ import annotations
+
+import json
 import sys
 from datetime import datetime
-from Backend.models import UserProfile, MarketData
-from Backend.optimizer import RecommendationEngine
-from Backend.config import FD_RATES
+from pathlib import Path
+
+from bitcoin_analyzer import BitcoinAnalyzer
+from Prompt import get_financial_reasoning_prompt
+from ZAI import IlmuApiError, ZAI
+from config import FD_RATES, EPF_INTEREST_RATE, EPF_TIER_TARGETS, get_fd_prompt_context
+from epf_calculator import EPFCalculator
+from models import MarketData, UserProfile
+
+
+DATA_DIR = Path(__file__).resolve().parent.parent / "data"
+MOCK_USERS_PATH = DATA_DIR / "Mock_User_Profiles.json"
+
+
+def load_mock_user_profile(user_id: str = "U001") -> UserProfile:
+    with MOCK_USERS_PATH.open("r", encoding="utf-8") as file_handle:
+        payload = json.load(file_handle)
+
+    users = payload.get("users", [])
+    if not isinstance(users, list) or not users:
+        raise ValueError("Mock_User_Profiles.json does not contain any users")
+
+    selected_user = next((item for item in users if item.get("user_id") == user_id), users[0])
+
+    user_profile = UserProfile(
+        age=int(selected_user["age"]),
+        monthly_salary=float(selected_user["monthly_salary_rm"]),
+        monthly_expenditure=0.0,
+        current_epf_balance=float(selected_user["epf_balance_rm"]),
+        fixed_liabilities=float(selected_user["fixed_liabilities_rm"]),
+        risk_appetite=str(selected_user["risk_appetite"]),
+        epf_deduction_rm=float(selected_user.get("epf_deduction_rm", 0.0)),
+        target_retirement_tier=str(selected_user.get("target_retirement_tier", "basic")).lower(),
+        user_id=str(selected_user.get("user_id")),
+    )
+
+    return user_profile
+
+
+def build_decision_context(epf_analysis: dict, user_profile: UserProfile) -> dict:
+    surplus = max(user_profile.monthly_surplus, 0.0)
+    return {
+        "current_surplus_rm": round(surplus, 2),
+        "fd_minimum_rm": 500,
+        "bitcoin_minimum_rm": 100,
+        "epf_status": epf_analysis["status"],
+        "priority_level": epf_analysis["priority_level"],
+        "selected_target_rm": epf_analysis["selected_target_rm"],
+        "deficit_rm": epf_analysis["deficit_rm"],
+        "deficit_percentage": epf_analysis["deficit_percentage"],
+    }
+
+
+def print_section(title: str) -> None:
+    print("=" * 80)
+    print(title)
+    print("=" * 80)
+    print()
+
+
+def safe_load_zai() -> ZAI | None:
+    try:
+        return ZAI()
+    except IlmuApiError as exc:
+        print(f"  - ZAI client unavailable: {exc}")
+        return None
 
 def test_system():
-    """Run comprehensive system tests"""
-    
-    print("=" * 80)
-    print("AI Financial Intelligence Advisor - System Test")
-    print("=" * 80)
-    print()
-    
-    # Test 1: Module imports
-    print("✓ Test 1: Module imports - PASSED")
+    """Run the prompt integration test path used by the GLM reasoning flow."""
+
+    print_section("AI Financial Intelligence Advisor - Prompt Integration Test")
+
+    print("✓ Test 1: Module imports and data loading")
     print("  - config.py loaded successfully")
-    print("  - models.py loaded successfully")
+    print(f"  - EPF tiers loaded for {len(EPF_TIER_TARGETS)} ages")
+    print(f"  - FD rates loaded for {len(FD_RATES)} banks")
     print("  - epf_calculator.py loaded successfully")
     print("  - bitcoin_analyzer.py loaded successfully")
-    print("  - optimizer.py loaded successfully")
+    print("  - prompt.py loaded successfully")
+    print("  - ZAI.py loaded successfully")
     print()
-    
-    # Test 2: Create user profile
-    print("✓ Test 2: Creating user profile...")
-    user = UserProfile(
-        age=30,
-        monthly_salary=5000,
-        monthly_expenditure=2000,
-        current_epf_balance=80000,
-        fixed_liabilities=500,
-        risk_appetite="Moderate"
-    )
+
+    print("✓ Test 2: Creating user profile from mock data")
+    user = load_mock_user_profile("U001")
     print(f"  - Age: {user.age}")
     print(f"  - Monthly Surplus: MYR {user.monthly_surplus:,.2f}")
     print(f"  - Annual Surplus: MYR {user.annual_surplus:,.2f}")
     print()
-    
-    # Test 3: Create market data
-    print("✓ Test 3: Creating market data...")
+
+    print("✓ Test 3: Creating market data")
     market = MarketData(
         bitcoin_price=45000,
         bitcoin_daily_change=2.5,
@@ -56,111 +111,83 @@ def test_system():
     print(f"  - Bitcoin Daily Change: {market.bitcoin_daily_change:+.2f}%")
     print(f"  - FD Rates Loaded: {len(market.fd_rates)} banks")
     print()
-    
-    # Test 4: Generate recommendation
-    print("✓ Test 4: Generating recommendation...")
+
+    print("✓ Test 4: Running EPF analysis")
     try:
-        recommendation = RecommendationEngine.generate_recommendation(user, market)
-        print(f"  - EPF Status: {recommendation.epf_status.value}")
-        print(f"  - EPF Gap: MYR {recommendation.epf_gap:,.2f}")
-        print(f"  - Allocation:")
-        print(f"    • FD: {recommendation.allocation_strategy.fd_percentage*100:.1f}%")
-        print(f"    • EPF: {recommendation.allocation_strategy.epf_percentage*100:.1f}%")
-        print(f"    • Crypto: {recommendation.allocation_strategy.crypto_percentage*100:.1f}%")
-        print(f"  - Bitcoin Signal: {recommendation.bitcoin_analysis.signal.value}")
-        print(f"  - Bitcoin Confidence: {recommendation.bitcoin_analysis.confidence_score:.0%}")
-        print(f"  - Projected Portfolio (12 months): MYR {recommendation.projected_portfolio_12months:,.2f}")
+        epf_report = EPFCalculator.get_epf_analysis(user, "Basic")
+        print(f"  - EPF Status: {epf_report['status']}")
+        print(f"  - EPF Gap: MYR {epf_report['deficit_rm']:,.2f}")
+        print(f"  - Priority Level: {epf_report['priority_level']}")
+        print(f"  - Target Tier: {epf_report['target_epf_level']}")
         print()
     except Exception as e:
         print(f"  ✗ FAILED: {e}")
         return False
-    
-    # Test 5: Allocation validation
-    print("✓ Test 5: Validating allocation...")
-    if recommendation.allocation_strategy.validate():
-        print("  - Allocation percentages sum to 100% ✓")
-    else:
-        print("  - ✗ FAILED: Allocation percentages don't sum to 100%")
+
+    print("✓ Test 5: Running Bitcoin analysis")
+    try:
+        bitcoin_analysis = BitcoinAnalyzer.analyze_trend(market)
+        bitcoin_summary = BitcoinAnalyzer.get_prompt_summary(market)
+        print(f"  - Signal: {bitcoin_summary['bitcoin_signal']}")
+        print(f"  - Confidence: {bitcoin_summary['bitcoin_confidence']:.0%}")
+        print(f"  - Trend: {bitcoin_summary['bitcoin_trend']}")
+    except Exception as e:
+        print(f"  - Bitcoin analysis failed: {e}")
         return False
-    
-    # Test 6: Output format
-    print("✓ Test 6: Checking output format...")
-    print(f"  - Timestamp: {recommendation.timestamp}")
-    print(f"  - Reasoning length: {len(recommendation.reasoning)} characters")
-    print(f"  - Top FD Option: {recommendation.top_fd_option.bank_name.replace('_', ' ')} @ {recommendation.top_fd_option.rate:.2f}%")
     print()
-    
-    # Test 7: Monthly allocations
-    print("✓ Test 7: Monthly allocations...")
-    monthly_total = sum(recommendation.allocation_monthly_amount.values())
-    print(f"  - FD: MYR {recommendation.allocation_monthly_amount['FD']:>8,.2f}/month")
-    print(f"  - EPF: MYR {recommendation.allocation_monthly_amount['EPF']:>8,.2f}/month")
-    print(f"  - Crypto: MYR {recommendation.allocation_monthly_amount['Crypto']:>8,.2f}/month")
-    print(f"  - Total: MYR {monthly_total:>8,.2f}/month")
+
+    print("✓ Test 6: Building prompt context")
+    user_data = user.getUserProfile()
+    epf_analysis = EPFCalculator.get_epf_analysis(user, "Basic")
+    allocation = build_decision_context(epf_analysis, user)
+    market_signals = bitcoin_summary
+    print(f"  - Decision context: {allocation}")
+    print(f"  - EPF priority: {epf_analysis['priority_level']}")
+    print(f"  - Bitcoin signal: {market_signals['bitcoin_signal']}")
     print()
-    
-    # Test 8: Portfolio projection
-    print("✓ Test 8: Portfolio projections...")
-    print(f"  - 1 month: MYR {recommendation.projected_portfolio_1month:>12,.2f}")
-    print(f"  - 6 months: MYR {recommendation.projected_portfolio_6months:>12,.2f}")
-    print(f"  - 12 months: MYR {recommendation.projected_portfolio_12months:>12,.2f}")
-    
-    annual_investment = recommendation.allocation_annual_amount['FD'] + recommendation.allocation_annual_amount['EPF'] + recommendation.allocation_annual_amount['Crypto']
-    roi_percentage = ((recommendation.projected_portfolio_12months - annual_investment) / annual_investment * 100) if annual_investment > 0 else 0
-    print(f"  - Annual Investment: MYR {annual_investment:,.2f}")
-    print(f"  - Estimated 12-month ROI: {roi_percentage:.1f}%")
-    print()
-    
-    # Test 9: Edge cases
-    print("✓ Test 9: Testing edge cases...")
-    
-    # Young user with low salary
-    young_user = UserProfile(
-        age=22,
-        monthly_salary=2500,
-        monthly_expenditure=1200,
-        current_epf_balance=5000,
-        fixed_liabilities=0,
-        risk_appetite="Aggressive"
+
+    print("✓ Test 7: Generating prompt for ZAI")
+    fd_market_data = get_fd_prompt_context(limit=3)
+    prompt = get_financial_reasoning_prompt(
+        user_data=user_data,
+        allocation=allocation,
+        epf_analysis=epf_analysis,
+        fd_market_data={
+            **fd_market_data,
+            "bitcoin_signal": market_signals["bitcoin_signal"],
+            "bitcoin_confidence": market_signals["bitcoin_confidence"],
+            "bitcoin_trend": market_signals["bitcoin_trend"],
+        },
     )
-    young_rec = RecommendationEngine.generate_recommendation(young_user, market)
-    print(f"  - Young user (22yo): EPF Status = {young_rec.epf_status.value}")
-    
-    # Older user with high EPF
-    older_user = UserProfile(
-        age=50,
-        monthly_salary=8000,
-        monthly_expenditure=3000,
-        current_epf_balance=300000,
-        fixed_liabilities=1000,
-        risk_appetite="Conservative"
-    )
-    older_rec = RecommendationEngine.generate_recommendation(older_user, market)
-    print(f"  - Older user (50yo): EPF Status = {older_rec.epf_status.value}")
-    
-    # Negative market conditions
-    bear_market = MarketData(
-        bitcoin_price=20000,
-        bitcoin_daily_change=-5.5,
-        bitcoin_7day_avg=22000,
-        bitcoin_30day_avg=25000,
-        fd_rates=FD_RATES,
-        epf_interest_rate=3.5,
-        timestamp=datetime.now()
-    )
-    bear_rec = RecommendationEngine.generate_recommendation(user, bear_market)
-    print(f"  - Bear market: Bitcoin Signal = {bear_rec.bitcoin_analysis.signal.value}")
+    print(f"  - Prompt length: {len(prompt)} characters")
+    print(f"  - Prompt preview: {prompt}")
     print()
-    
-    # Final summary
-    print("=" * 80)
-    print("ALL TESTS PASSED ✓")
-    print("=" * 80)
+
+    print("✓ Test 8: Calling ZAI with prompt")
+    zai = safe_load_zai()
+    if zai is None:
+        print("  - Skipping live ZAI call because the client could not be initialized.")
+        print()
+        print_section("PROMPT TEST COMPLETED")
+        return True
+
+    try:
+        response_text = zai.chat(prompt)
+        print("  - ZAI response received: ----------------------------------------------------------------------")
+        print(response_text)
+        try:
+            parsed = json.loads(response_text)
+            print(f"  - Parsed JSON keys: {list(parsed.keys())}")
+        except json.JSONDecodeError:
+            print("  - Response was not valid JSON")
+        print()
+    except Exception as e:
+        print(f"  ✗ ZAI CALL FAILED: {e}")
+        return False
+
+    print_section("ALL PROMPT TESTS PASSED")
+    print("System is ready to exercise prompt.py with live ZAI if the API key is available.")
     print()
-    print("System is ready for production use!")
-    print("Run 'python main.py' to start the desktop application")
-    print()
-    
     return True
 
 

@@ -18,6 +18,7 @@ import {
   YAxis,
   Tooltip,
 } from "recharts";
+import type { AdvisoryResponse } from "../lib/api";
 
 const fdRankings = [
   { bank: "SBI Fixed Deposit", rate: 7.1, amount: 500000, progress: 90 },
@@ -26,8 +27,6 @@ const fdRankings = [
   { bank: "Axis Bank FD", rate: 6.8, amount: 150000, progress: 75 },
   { bank: "Kotak Mahindra FD", rate: 6.7, amount: 100000, progress: 70 },
 ];
-
-const epfData = [{ name: "EPF Health", value: 85, fill: "#3EFFA3" }];
 
 const cryptoData = [
   { time: "00:00", price: 42000 },
@@ -43,6 +42,16 @@ export function Dashboard() {
   const location = useLocation();
   const navigate = useNavigate();
   const userData = location.state?.userData;
+  const advisoryResponse = location.state?.advisoryResponse as AdvisoryResponse | undefined;
+  const epfHealth = Math.max(
+    0,
+    Math.min(
+      100,
+      100 - Number(advisoryResponse?.epf_analysis?.deficit_percentage ?? 15),
+    ),
+  );
+
+  const epfData = [{ name: "EPF Health", value: epfHealth, fill: "#3EFFA3" }];
 
   return (
     <motion.div
@@ -70,7 +79,14 @@ export function Dashboard() {
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
-            onClick={() => navigate("/advisory")}
+            onClick={() =>
+              navigate("/advisory", {
+                state: {
+                  userData,
+                  advisoryResponse,
+                },
+              })
+            }
             className="px-6 py-3 bg-gradient-to-r from-[#B794F6] to-[#FFD700] rounded-xl text-[#121418] flex items-center gap-2 shadow-[0_0_25px_rgba(183,148,246,0.5)]"
           >
             <Zap className="w-5 h-5" />
@@ -162,8 +178,10 @@ export function Dashboard() {
                   </RadialBarChart>
                 </ResponsiveContainer>
                 <div className="absolute text-center">
-                  <div className="text-5xl text-[#3EFFA3]">85%</div>
-                  <p className="text-sm text-[#8B92A8] mt-1">Optimal</p>
+                  <div className="text-5xl text-[#3EFFA3]">{Math.round(epfHealth)}%</div>
+                  <p className="text-sm text-[#8B92A8] mt-1">
+                    {advisoryResponse?.epf_analysis?.status || "Optimal"}
+                  </p>
                 </div>
               </div>
               <div className="mt-4 grid grid-cols-2 gap-4">
@@ -175,7 +193,9 @@ export function Dashboard() {
                 </div>
                 <div className="p-3 bg-[rgba(62,255,163,0.05)] rounded-lg border border-[rgba(62,255,163,0.2)]">
                   <p className="text-xs text-[#8B92A8]">Growth</p>
-                  <p className="text-xl text-[#3EFFA3] mt-1">+12.3%</p>
+                  <p className="text-xl text-[#3EFFA3] mt-1">
+                    {advisoryResponse?.epf_analysis?.priority_level || "No Priority"}
+                  </p>
                 </div>
               </div>
             </div>

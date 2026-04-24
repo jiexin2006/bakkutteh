@@ -12,7 +12,8 @@
       "current_surplus_rm": 200,
       "epf_balance_rm": 500,
       "risk_appetite": "High",
-      "target_retirement_tier": "Enhanced"
+      "target_retirement_tier": "Enhanced",
+      "monthly_expenditure_rm": 1500
     },
     {
       "user_id": "U002",
@@ -26,7 +27,8 @@
       "current_surplus_rm": 800,
       "epf_balance_rm": 8000,
       "risk_appetite": "Medium",
-      "target_retirement_tier": "Basic"
+      "target_retirement_tier": "Basic",
+      "monthly_expenditure_rm": 3000
     },
     {
       "user_id": "U003",
@@ -40,7 +42,8 @@
       "current_surplus_rm": 350,
       "epf_balance_rm": 15000,
       "risk_appetite": "Low",
-      "target_retirement_tier": "Basic"
+      "target_retirement_tier": "Basic",
+      "monthly_expenditure_rm": 4500
     },
     {
       "user_id": "U004",
@@ -54,7 +57,8 @@
       "current_surplus_rm": 1800,
       "epf_balance_rm": 35000,
       "risk_appetite": "Medium",
-      "target_retirement_tier": "Adequate"
+      "target_retirement_tier": "Adequate",
+      "monthly_expenditure_rm": 4000
     },
     {
       "user_id": "U005",
@@ -68,7 +72,8 @@
       "current_surplus_rm": 3500,
       "epf_balance_rm": 65000,
       "risk_appetite": "High",
-      "target_retirement_tier": "Enhanced"
+      "target_retirement_tier": "Enhanced",
+      "monthly_expenditure_rm": 4000
     }
   ]
 }

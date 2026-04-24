@@ -13,8 +13,8 @@ import json
 from dataclasses import dataclass
 from pathlib import Path
 
-from Backend.models import MarketData, BitcoinSignal, BitcoinAnalysis
-from Backend.config import BITCOIN_THRESHOLDS, CONFIDENCE_THRESHOLDS
+from models import MarketData, BitcoinSignal, BitcoinAnalysis
+from config import BITCOIN_THRESHOLDS, CONFIDENCE_THRESHOLDS
 
 
 DATA_DIR = Path(__file__).resolve().parent.parent / "data"
@@ -164,6 +164,16 @@ class BitcoinAnalyzer:
             return cls.predict_with_model(features)
         except NotImplementedError:
             return cls._fallback_analysis(market_data, features)
+
+    @classmethod
+    def get_prompt_summary(cls, market_data: MarketData) -> dict:
+        """Return a compact Bitcoin payload for prompting and downstream reasoning."""
+        analysis = cls.analyze_trend(market_data)
+        return {
+            "bitcoin_signal": analysis.signal.value,
+            "bitcoin_confidence": round(float(analysis.confidence_score), 2),
+            "bitcoin_trend": analysis.trend,
+        }
 
     @staticmethod
     def calculate_confidence_level(confidence_score: float) -> str:

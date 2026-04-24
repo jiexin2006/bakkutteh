@@ -1,7 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { motion } from "motion/react";
 import { ArrowRight, Sparkles } from "lucide-react";
+import { fetchAdvisory } from "../lib/api";
+import type { AdvisoryResponse } from "../lib/api";
 
 export function Onboarding() {
   const navigate = useNavigate();
@@ -15,10 +17,131 @@ export function Onboarding() {
     cryptoHoldings: "",
   });
   const [focusedField, setFocusedField] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [submitStage, setSubmitStage] = useState<string>("");
+  const [elapsedSeconds, setElapsedSeconds] = useState<number>(0);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  useEffect(() => {
+    if (!isSubmitting) {
+      setElapsedSeconds(0);
+      return;
+    }
+
+    const timer = window.setInterval(() => {
+      setElapsedSeconds((prev) => prev + 1);
+    }, 1000);
+
+    return () => window.clearInterval(timer);
+  }, [isSubmitting]);
+
+  const toNumber = (value: string): number => {
+    const normalized = value.replace(/,/g, "").trim();
+    return normalized ? Number(normalized) : 0;
+  };
+
+  // remove when Z.ai is stable and fallback is no longer needed
+
+  const buildLocalFallbackResponse = (errorMessage: string): AdvisoryResponse => {
+    const age = toNumber(formData.age);
+    const salary = toNumber(formData.salary);
+    const monthlyExpenses = toNumber(formData.monthlyExpenses);
+    const currentEPF = toNumber(formData.currentEPF);
+    const surplus = Math.max(0, salary - monthlyExpenses);
+
+    return {
+      request_id: `local-fallback-${Date.now()}`,
+      advisory_source: "fallback",
+      advisory_label: "TEMPORARY_FALLBACK",
+      advisory_error: errorMessage,
+      user_profile: {
+        user_id: formData.name,
+        age,
+        current_epf_balance_rm: currentEPF,
+        current_surplus_rm: surplus,
+      },
+      epf_analysis: {
+        status: "Fallback",
+        deficit_percentage: 0,
+        priority_level: "Medium",
+        selected_target_rm: 0,
+        deficit_rm: 0,
+      },
+      market_signals: {
+        bitcoin_signal: "HOLD",
+        bitcoin_confidence: 0.3,
+        bitcoin_trend: "Neutral",
+      },
+      advisory_json: {
+        overall_strategy: "Temporary fallback allocation while live advisory is unavailable",
+        safety_gauge: "Medium",
+        action_plan: [
+          {
+            percentage: "40%",
+            category: "EPF",
+            action: "Top-up EPF via i-Akaun",
+            reasoning: "Fallback prioritizes retirement safety until live AI response recovers.",
+          },
+          {
+            percentage: "40%",
+            category: "FD",
+            action: "Place funds in a verified 12-month FD option",
+            reasoning: "Fallback emphasizes stable returns while model endpoint is unavailable.",
+          },
+          {
+            percentage: "20%",
+            category: "Crypto",
+            action: "Hold small BTC allocation",
+            reasoning: "Risk is capped during fallback mode.",
+          },
+        ],
+        next_step: "You are viewing temporary fallback advice. Retry shortly for live AI output.",
+      },
+    };
+  };
+  // until here
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    navigate("/dashboard", { state: { userData: formData } });
+    setSubmitError(null);
+    setIsSubmitting(true);
+    setSubmitStage("Sending profile to backend...");
+
+    try {
+      setSubmitStage("Backend is preparing EPF and market context...");
+      const advisoryResponse = await fetchAdvisory({
+        name: formData.name,
+        age: toNumber(formData.age),
+        salary: toNumber(formData.salary),
+        monthlyExpenses: toNumber(formData.monthlyExpenses),
+        currentFD: toNumber(formData.currentFD),
+        currentEPF: toNumber(formData.currentEPF),
+        cryptoHoldings: toNumber(formData.cryptoHoldings),
+      });
+
+      setSubmitStage("Advisory received. Rendering dashboard...");
+
+      navigate("/dashboard", {
+        state: {
+          userData: formData,
+          advisoryResponse,
+        },
+      });
+    } catch (error) {
+      
+      const errorMessage = error instanceof Error ? error.message : "Unable to generate advisory right now.";
+      setSubmitStage("Live advisory failed. Loading temporary fallback...");
+
+      const advisoryResponse = buildLocalFallbackResponse(errorMessage);
+      navigate("/dashboard", {
+        state: {
+          userData: formData,
+          advisoryResponse,
+        },
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -141,11 +264,20 @@ export function Onboarding() {
             type="submit"
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
+            disabled={isSubmitting}
             className="w-full mt-8 px-6 py-4 bg-gradient-to-r from-[#00D4FF] to-[#B794F6] rounded-xl text-[#121418] flex items-center justify-center gap-2 shadow-[0_0_30px_rgba(0,212,255,0.5)] transition-all duration-300 hover:shadow-[0_0_40px_rgba(0,212,255,0.7)]"
           >
-            <span className="text-lg">Launch Dashboard</span>
+            <span className="text-lg">{isSubmitting ? "Generating Advisory..." : "Launch Dashboard"}</span>
             <ArrowRight className="w-5 h-5" />
           </motion.button>
+          {isSubmitting && (
+            <p className="mt-3 text-sm text-[#8B92A8]">
+              {submitStage} ({elapsedSeconds}s)
+            </p>
+          )}
+          {submitError && (
+            <p className="mt-4 text-sm text-[#FF8A8A]">{submitError}</p>
+          )}
         </motion.form>
 
         <motion.p

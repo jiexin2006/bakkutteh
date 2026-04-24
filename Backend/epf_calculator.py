@@ -1,12 +1,7 @@
 from __future__ import annotations
 
-from Backend.config import (
-    BITCOIN_MIN_PLACEMENT_RM,
-    FD_MIN_PLACEMENT_RM,
-    get_epf_target,
-    get_epf_targets_for_age,
-)
-from Backend.models import EPFStatus, UserProfile
+from config import get_epf_target, get_epf_targets_for_age
+from models import EPFStatus, RETIREMENT_TIER, UserProfile
 
 
 class PlaceholderEPFError(NotImplementedError):
@@ -16,23 +11,25 @@ class PlaceholderEPFError(NotImplementedError):
 class EPFCalculator:
     """Deterministic EPF benchmarking logic based on data/epf-standards.json."""
 
-    VALID_TIERS = {"basic", "adequate", "enhanced"}
-
     @staticmethod
-    def normalize_target_tier(target_retirement_tier: str) -> str:
-        """Normalize external tier labels (Basic/Adequate/Enhanced) to internal lowercase."""
-        normalized = target_retirement_tier.strip().lower()
-        if normalized not in EPFCalculator.VALID_TIERS:
+    def normalize_target_tier(target_retirement_tier: str | RETIREMENT_TIER) -> RETIREMENT_TIER:
+        """Normalize a tier label into the canonical retirement tier enum."""
+        if isinstance(target_retirement_tier, RETIREMENT_TIER):
+            return target_retirement_tier
+
+        normalized = str(target_retirement_tier).strip().upper()
+        try:
+            return RETIREMENT_TIER[normalized]
+        except KeyError as exc:
             raise ValueError(
                 "target_retirement_tier must be one of: Basic, Adequate, Enhanced"
-            )
-        return normalized
+            ) from exc
 
     @staticmethod
-    def get_target_balance(age: int, target_tier: str = "basic") -> float:
+    def get_target_balance(age: int, target_tier: str | RETIREMENT_TIER = RETIREMENT_TIER.BASIC) -> float:
         """Get EPF target for a specific age and target tier using nearest-age fallback."""
         normalized_tier = EPFCalculator.normalize_target_tier(target_tier)
-        return get_epf_target(age=age, tier=normalized_tier)
+        return get_epf_target(age=age, target_tier=normalized_tier)
 
     @staticmethod
     def calculate_gap(current_balance: float, target_balance: float) -> float:
@@ -82,19 +79,6 @@ class EPFCalculator:
         return remaining_value / annuity_factor
 
     @staticmethod
-    def get_crypto_allocation_cap(gap_percentage: float) -> float:
-        """Return max crypto weight based on EPF deficit severity."""
-        if gap_percentage <= 0:
-            return 0.50
-        if gap_percentage >= 75:
-            return 0.10
-        if gap_percentage >= 50:
-            return 0.20
-        if gap_percentage >= 25:
-            return 0.35
-        return 0.45
-
-    @staticmethod
     def project_epf_balance(
         current_balance: float,
         monthly_contribution: float,
@@ -114,13 +98,14 @@ class EPFCalculator:
     @staticmethod
     def generate_epf_report(
         user_profile: UserProfile,
-        target_retirement_tier: str = "Basic",
+        target_retirement_tier: str | RETIREMENT_TIER = RETIREMENT_TIER.BASIC,
     ) -> dict:
-        """Generate schema-aligned EPF report for a user profile."""
+        """Generate a compact EPF payload for prompting and downstream reasoning."""
         normalized_tier = EPFCalculator.normalize_target_tier(target_retirement_tier)
         tier_targets = get_epf_targets_for_age(user_profile.age)
 
-        selected_target = tier_targets[normalized_tier]
+        tier_key = normalized_tier.value.lower()
+        selected_target = tier_targets[tier_key]
         deficit_rm = EPFCalculator.calculate_gap(user_profile.current_epf_balance, selected_target)
         deficit_percentage = EPFCalculator.calculate_gap_percentage(
             user_profile.current_epf_balance,
@@ -140,99 +125,19 @@ class EPFCalculator:
         )
         return {
             "age": user_profile.age,
-            "target_epf_level": normalized_tier,
-            "basic_target_rm": tier_targets["basic"],
-            "adequate_target_rm": tier_targets["adequate"],
-            "enhanced_target_rm": tier_targets["enhanced"],
+            "target_epf_level": tier_key,
             "selected_target_rm": selected_target,
             "deficit_rm": deficit_rm,
-            "deficit_percentage": deficit_percentage,
+            "deficit_percentage": round(deficit_percentage, 2),
             "status": status_label,
             "priority_level": priority_level,
-            "status_enum": EPFCalculator.determine_status(deficit_percentage).value,
         }
 
     @staticmethod
-    def recommend_surplus_parking(
-        monthly_surplus_rm: float,
-        deficit_percentage: float,
+    def get_epf_analysis(
+        user_profile: UserProfile,
+        target_retirement_tier: str | RETIREMENT_TIER = RETIREMENT_TIER.BASIC,
     ) -> dict:
-        """Recommend EPF/Savings mix when user is not eligible for FD/Bitcoin minimum placement."""
-        surplus = float(monthly_surplus_rm)
-        fd_eligible = surplus >= FD_MIN_PLACEMENT_RM
-        bitcoin_eligible = surplus >= BITCOIN_MIN_PLACEMENT_RM
-
-        if surplus <= 0:
-            return {
-                "strategy": "No Allocation",
-                "fd_eligible": False,
-                "bitcoin_eligible": False,
-                "savings_amount_rm": 0.0,
-                "epf_amount_rm": 0.0,
-                "reason": (
-                    "No surplus is available for allocation. Prioritize reducing fixed liabilities "
-                    "or increasing monthly income first."
-                ),
-                "risk_note": "No investment action until monthly surplus becomes positive.",
-            }
-
-        if fd_eligible or bitcoin_eligible:
-            return {
-                "strategy": "Investable",
-                "fd_eligible": fd_eligible,
-                "bitcoin_eligible": bitcoin_eligible,
-                "savings_amount_rm": 0.0,
-                "epf_amount_rm": 0.0,
-                "reason": (
-                    "Surplus already meets at least one minimum placement rule, so normal allocation "
-                    "logic can proceed beyond liquidity parking."
-                ),
-                "risk_note": "User can diversify into eligible instruments with controlled risk sizing.",
-            }
-
-        # Low-surplus path: user is not eligible for FD and Bitcoin minimum placements.
-        if deficit_percentage >= 50:
-            epf_ratio = 1.0
-            strategy = "EPF"
-            reason = (
-                "EPF deficit is significant relative to the selected retirement tier target, so "
-                "prioritizing EPF contribution is recommended despite lower liquidity."
-            )
-            risk_note = (
-                "Higher lock-in risk due to reduced liquidity, but better retirement catch-up potential."
-            )
-        elif deficit_percentage <= 0:
-            epf_ratio = 0.0
-            strategy = "Savings"
-            reason = (
-                "EPF balance is currently on track for the selected retirement tier, so parking surplus "
-                "in Savings preserves full liquidity until amount is large enough for FD placement."
-            )
-            risk_note = "Very low liquidity risk, but no dividend/return while parked in Savings."
-        else:
-            if deficit_percentage >= 25:
-                epf_ratio = 0.7
-            else:
-                epf_ratio = 0.4
-            strategy = "EPF+Savings"
-            reason = (
-                "EPF is behind target but not critically, so split surplus between EPF catch-up and "
-                "Savings liquidity buffer until minimum placement thresholds are met."
-            )
-            risk_note = (
-                "Balanced trade-off: moderate retirement catch-up with partial liquidity retained."
-            )
-
-        epf_amount = round(surplus * epf_ratio, 2)
-        savings_amount = round(surplus - epf_amount, 2)
-
-        return {
-            "strategy": strategy,
-            "fd_eligible": False,
-            "bitcoin_eligible": False,
-            "savings_amount_rm": savings_amount,
-            "epf_amount_rm": epf_amount,
-            "reason": reason,
-            "risk_note": risk_note,
-        }
+        """Clean exit point for prompt payload generation."""
+        return EPFCalculator.generate_epf_report(user_profile, target_retirement_tier)
 
