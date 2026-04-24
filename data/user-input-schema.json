@@ -1,0 +1,397 @@
+{
+  "api_endpoint": "/api/v1/analyze",
+  "http_method": "POST",
+  "content_type": "application/json",
+  "description": "User financial profile for comprehensive analysis",
+  "required_fields": [
+    "user_id",
+    "age",
+    "monthly_salary_rm",
+    "fixed_liabilities_rm",
+    "current_epf_balance_rm",
+    "target_retirement_tier",
+    "risk_appetite"
+  ],
+  "request_body_schema": {
+    "user_id": {
+      "type": "string",
+      "required": true,
+      "description": "Unique user identifier",
+      "example": "U001",
+      "validation": {
+        "min_length": 1,
+        "max_length": 50,
+        "pattern": "^[a-zA-Z0-9_-]+$"
+      },
+      "error_message": "user_id must be alphanumeric, between 1-50 characters"
+    },
+    "age": {
+      "type": "integer",
+      "required": true,
+      "description": "User's current age in years",
+      "example": 21,
+      "validation": {
+        "minimum": 18,
+        "maximum": 70,
+        "type": "integer"
+      },
+      "error_message": "Age must be between 18 and 70 years"
+    },
+    "monthly_salary_rm": {
+      "type": "number",
+      "required": true,
+      "description": "Gross monthly salary in Malaysian Ringgit",
+      "example": 1200,
+      "validation": {
+        "minimum": 0,
+        "exclusive_minimum": true,
+        "type": "number",
+        "decimal_places": 2
+      },
+      "error_message": "Monthly salary must be greater than 0 RM"
+    },
+    "fixed_liabilities_rm": {
+      "type": "number",
+      "required": true,
+      "description": "Monthly fixed expenses (rent, utilities, loans, etc.) in RM",
+      "example": 800,
+      "validation": {
+        "minimum": 0,
+        "type": "number",
+        "decimal_places": 2
+      },
+      "error_message": "Fixed liabilities must be 0 or greater RM"
+    },
+    "current_epf_balance_rm": {
+      "type": "number",
+      "required": true,
+      "description": "User's current EPF savings balance in RM",
+      "example": 500,
+      "validation": {
+        "minimum": 0,
+        "type": "number",
+        "decimal_places": 2
+      },
+      "error_message": "Current EPF balance must be 0 or greater RM"
+    },
+    "target_retirement_tier": {
+      "type": "string",
+      "required": true,
+      "description": "Which EPF savings target level the user wants to achieve",
+      "example": "Basic",
+      "enum": [
+        "Basic",
+        "Adequate",
+        "Enhanced"
+      ],
+      "enum_descriptions": {
+        "Basic": "Minimum recommended EPF savings for retirement readiness",
+        "Adequate": "Recommended EPF savings for comfortable retirement",
+        "Enhanced": "Optimal EPF savings for enhanced retirement lifestyle"
+      },
+      "note": "Maps to target_epf_level internally (convert to lowercase: basic, adequate, enhanced)",
+      "error_message": "target_retirement_tier must be one of: Basic, Adequate, Enhanced"
+    },
+    "risk_appetite": {
+      "type": "string",
+      "required": true,
+      "description": "User's risk tolerance for investments",
+      "example": "High",
+      "enum": [
+        "High",
+        "Medium",
+        "Low"
+      ],
+      "enum_descriptions": {
+        "High": "Aggressive investor comfortable with volatility, seeks high returns",
+        "Medium": "Balanced investor seeking stability and growth",
+        "Low": "Conservative investor prioritizing capital preservation"
+      },
+      "error_message": "risk_appetite must be one of: High, Medium, Low"
+    }
+  },
+  "business_logic_validations": {
+    "monthly_surplus_calculation": {
+      "formula": "monthly_salary_rm - fixed_liabilities_rm",
+      "constraint": "monthly_surplus_rm >= 0",
+      "error_message": "Fixed liabilities cannot exceed monthly salary. Please check your inputs.",
+      "recommendation": "If monthly_surplus < 0, user cannot invest and should focus on expense reduction."
+    },
+    "target_tier_normalization": {
+      "description": "Convert target_retirement_tier to lowercase for internal use",
+      "example": "Basic → basic, Adequate → adequate, Enhanced → enhanced",
+      "internal_field_name": "target_epf_level"
+    },
+    "epf_lookup": {
+      "description": "Backend must look up EPF targets from epf-standards.json",
+      "lookup_key": "Match user age to closest entry in epf-standards.json",
+      "returns": {
+        "basic_target_rm": "number",
+        "adequate_target_rm": "number",
+        "enhanced_target_rm": "number"
+      },
+      "error_handling": "If exact age not found, use nearest age value"
+    },
+    "epf_deficit_calculation": {
+      "formula": "selected_target_rm - current_epf_balance_rm",
+      "selected_target": "Based on user's target_retirement_tier selection (converted to lowercase)",
+      "deficit_percentage": "(deficit_rm / selected_target_rm) * 100",
+      "status_determination": {
+        "if_deficit_rm_gt_0": "status = 'Behind'",
+        "if_deficit_rm_le_0": "status = 'On Track'"
+      }
+    },
+    "priority_level_determination": {
+      "based_on": "deficit_percentage value",
+      "mapping": {
+        "deficit_percentage >= 75": "priority_level = 'Critical'",
+        "deficit_percentage >= 50 AND < 75": "priority_level = 'High'",
+        "deficit_percentage >= 25 AND < 50": "priority_level = 'Medium'",
+        "deficit_percentage > 0 AND < 25": "priority_level = 'Low'",
+        "deficit_percentage <= 0": "priority_level = 'No Priority (On Track)'"
+      }
+    }
+  },
+  "example_requests": [
+    {
+      "description": "The Struggling Student (U001)",
+      "request": {
+        "user_id": "U001",
+        "age": 21,
+        "monthly_salary_rm": 1200,
+        "fixed_liabilities_rm": 800,
+        "current_epf_balance_rm": 500,
+        "target_retirement_tier": "Enhanced",
+        "risk_appetite": "High"
+      },
+      "expected_calculations": {
+        "monthly_surplus_rm": 400,
+        "target_epf_level": "enhanced",
+        "basic_target_rm": 2800,
+        "adequate_target_rm": 3000,
+        "enhanced_target_rm": 5000,
+        "selected_target_rm": 5000,
+        "deficit_rm": 4500,
+        "deficit_percentage": 90.0,
+        "status": "Behind",
+        "priority_level": "Critical"
+      }
+    },
+    {
+      "description": "The Fresh Graduate (U002)",
+      "request": {
+        "user_id": "U002",
+        "age": 24,
+        "monthly_salary_rm": 3500,
+        "fixed_liabilities_rm": 2000,
+        "current_epf_balance_rm": 8000,
+        "target_retirement_tier": "Basic",
+        "risk_appetite": "Medium"
+      },
+      "expected_calculations": {
+        "monthly_surplus_rm": 1500,
+        "target_epf_level": "basic",
+        "basic_target_rm": 12300,
+        "adequate_target_rm": 14100,
+        "enhanced_target_rm": 24300,
+        "selected_target_rm": 12300,
+        "deficit_rm": 4300,
+        "deficit_percentage": 34.96,
+        "status": "Behind",
+        "priority_level": "High"
+      }
+    },
+    {
+      "description": "The Stable Earner (Low Savings) (U003)",
+      "request": {
+        "user_id": "U003",
+        "age": 35,
+        "monthly_salary_rm": 5000,
+        "fixed_liabilities_rm": 4000,
+        "current_epf_balance_rm": 15000,
+        "target_retirement_tier": "Basic",
+        "risk_appetite": "Low"
+      },
+      "expected_calculations": {
+        "monthly_surplus_rm": 1000,
+        "target_epf_level": "basic",
+        "basic_target_rm": 68100,
+        "adequate_target_rm": 90000,
+        "enhanced_target_rm": 165000,
+        "selected_target_rm": 68100,
+        "deficit_rm": 53100,
+        "deficit_percentage": 77.96,
+        "status": "Behind",
+        "priority_level": "Critical"
+      }
+    },
+    {
+      "description": "The Ideal Target (U004)",
+      "request": {
+        "user_id": "U004",
+        "age": 28,
+        "monthly_salary_rm": 4200,
+        "fixed_liabilities_rm": 2500,
+        "current_epf_balance_rm": 35000,
+        "target_retirement_tier": "Adequate",
+        "risk_appetite": "Medium"
+      },
+      "expected_calculations": {
+        "monthly_surplus_rm": 1700,
+        "target_epf_level": "adequate",
+        "basic_target_rm": 28300,
+        "adequate_target_rm": 34500,
+        "enhanced_target_rm": 62800,
+        "selected_target_rm": 34500,
+        "deficit_rm": -500,
+        "deficit_percentage": -1.45,
+        "status": "On Track",
+        "priority_level": "No Priority"
+      }
+    },
+    {
+      "description": "The Aggressive Wealth Builder (U005)",
+      "request": {
+        "user_id": "U005",
+        "age": 30,
+        "monthly_salary_rm": 8500,
+        "fixed_liabilities_rm": 3000,
+        "current_epf_balance_rm": 65000,
+        "target_retirement_tier": "Enhanced",
+        "risk_appetite": "High"
+      },
+      "expected_calculations": {
+        "monthly_surplus_rm": 5500,
+        "target_epf_level": "enhanced",
+        "basic_target_rm": 38000,
+        "adequate_target_rm": 47500,
+        "enhanced_target_rm": 85400,
+        "selected_target_rm": 85400,
+        "deficit_rm": 20400,
+        "deficit_percentage": 23.89,
+        "status": "Behind",
+        "priority_level": "Low"
+      }
+    }
+  ],
+  "validation_sequence_for_backend": [
+    {
+      "step": 1,
+      "name": "Type Validation",
+      "checks": [
+        "user_id is string",
+        "age is integer",
+        "monthly_salary_rm is number",
+        "fixed_liabilities_rm is number",
+        "current_epf_balance_rm is number",
+        "target_retirement_tier is string",
+        "risk_appetite is string"
+      ]
+    },
+    {
+      "step": 2,
+      "name": "Required Fields Check",
+      "checks": [
+        "All 7 fields must be present",
+        "No null or undefined values"
+      ]
+    },
+    {
+      "step": 3,
+      "name": "Value Range Validation",
+      "checks": [
+        "age between 18-70",
+        "monthly_salary_rm > 0",
+        "fixed_liabilities_rm >= 0",
+        "current_epf_balance_rm >= 0",
+        "target_retirement_tier in [Basic, Adequate, Enhanced]",
+        "risk_appetite in [High, Medium, Low]"
+      ]
+    },
+    {
+      "step": 4,
+      "name": "Business Logic Validation",
+      "checks": [
+        "monthly_surplus_rm = monthly_salary_rm - fixed_liabilities_rm",
+        "monthly_surplus_rm >= 0 (warn if negative, but allow with guidance)",
+        "Convert target_retirement_tier to lowercase for internal processing"
+      ]
+    },
+    {
+      "step": 5,
+      "name": "Return Validation Errors or Proceed",
+      "checks": [
+        "If any validation fails: return 400 error with specific field messages",
+        "If all validations pass: proceed to EPF analysis"
+      ]
+    }
+  ],
+  "error_response_examples": {
+    "missing_field": {
+      "status": 400,
+      "error": {
+        "message": "Validation failed",
+        "errors": [
+          {
+            "field": "age",
+            "message": "age is required"
+          }
+        ]
+      }
+    },
+    "invalid_type": {
+      "status": 400,
+      "error": {
+        "message": "Validation failed",
+        "errors": [
+          {
+            "field": "age",
+            "message": "age must be an integer"
+          }
+        ]
+      }
+    },
+    "value_out_of_range": {
+      "status": 400,
+      "error": {
+        "message": "Validation failed",
+        "errors": [
+          {
+            "field": "age",
+            "message": "age must be between 18 and 70"
+          }
+        ]
+      }
+    },
+    "invalid_enum": {
+      "status": 400,
+      "error": {
+        "message": "Validation failed",
+        "errors": [
+          {
+            "field": "target_retirement_tier",
+            "message": "target_retirement_tier must be one of: Basic, Adequate, Enhanced"
+          }
+        ]
+      }
+    },
+    "negative_surplus": {
+      "status": 400,
+      "error": {
+        "message": "Validation failed",
+        "errors": [
+          {
+            "field": "fixed_liabilities_rm",
+            "message": "Fixed liabilities (RM 5000) exceed monthly salary (RM 3500). You have no surplus to invest. Please reduce expenses first."
+          }
+        ]
+      }
+    }
+  },
+  "curl_test_examples": {
+    "example_1_struggling_student": "curl -X POST http://localhost:3000/api/v1/analyze -H 'Content-Type: application/json' -d '{\"user_id\":\"U001\",\"age\":21,\"monthly_salary_rm\":1200,\"fixed_liabilities_rm\":800,\"current_epf_balance_rm\":500,\"target_retirement_tier\":\"Enhanced\",\"risk_appetite\":\"High\"}'",
+    "example_2_ideal_target": "curl -X POST http://localhost:3000/api/v1/analyze -H 'Content-Type: application/json' -d '{\"user_id\":\"U004\",\"age\":28,\"monthly_salary_rm\":4200,\"fixed_liabilities_rm\":2500,\"current_epf_balance_rm\":35000,\"target_retirement_tier\":\"Adequate\",\"risk_appetite\":\"Medium\"}'"
+  },
+  "version": "1.0",
+  "last_updated": "2026-04-24"
+}

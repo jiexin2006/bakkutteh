@@ -1,0 +1,17 @@
+# Requirements for AI Financial Intelligence Advisor
+# Python 3.8+ required
+
+# No external dependencies - uses only Python standard library
+# This ensures easy deployment and minimal setup
+
+# Core is built with:
+# - tkinter (included with Python)
+# - dataclasses (Python 3.7+)
+# - datetime (stdlib)
+# - threading (stdlib)
+# - enum (stdlib)
+
+# Optional dependencies for features:
+# - numpy: For advanced statistical analysis (future feature)
+# - pandas: For data export/reporting (future feature)
+# - requests: For live market data fetching (future feature)
