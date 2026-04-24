@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from Backend.models import (
+from models import (
     AllocationStrategy,
     BankRecommendation,
     BitcoinAnalysis,

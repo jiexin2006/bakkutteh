@@ -2,6 +2,7 @@
 
 from pathlib import Path
 import json
+from models import EPFStatus, RETIREMENT_TIER
 
 
 class EPFDataError(Exception):
@@ -131,6 +132,42 @@ def _load_fd_rates() -> dict[str, dict[str, float]]:
     return rates
 
 
+def get_fd_prompt_context(limit: int = 3) -> dict:
+    """Return a compact FD context for prompt generation."""
+    data_dir = Path(__file__).resolve().parent.parent / "data"
+    json_path = data_dir / "FD_rates&EPF_dividend.json"
+
+    with json_path.open("r", encoding="utf-8") as file_handle:
+        payload = json.load(file_handle)
+
+    rows = payload.get("fixed_deposits", [])
+    compact_rows = []
+
+    for row in rows:
+        compact_rows.append(
+            {
+                "bank_name": row.get("bank_name"),
+                "account_type": row.get("account_type"),
+                "tenure_months": row.get("tenure_months"),
+                "interest_rate_pct": row.get("interest_rate_pct"),
+                "min_placement_rm": row.get("min_placement_rm"),
+            }
+        )
+
+    compact_rows = sorted(
+        compact_rows,
+        key=lambda item: (
+            -(item.get("interest_rate_pct") or 0),
+            item.get("min_placement_rm") or 0,
+        ),
+    )[:limit]
+
+    return {
+        "epf_dividend_rate_pct": payload.get("epf_dividend_rate_pct", EPF_INTEREST_RATE),
+        "verified_market_rates": compact_rows,
+    }
+
+
 # EPF tiered savings targets (in MYR) loaded from data/epf-standards.json
 EPF_TIER_TARGETS = _load_epf_standards_by_age()
 
@@ -157,15 +194,15 @@ def get_epf_targets_for_age(age: int) -> dict[str, float]:
     return EPF_TIER_TARGETS[nearest_age]
 
 # Interpolate targets for ages not in the table
-def get_epf_target(age: int, tier: str = "basic") -> float:
+def get_epf_target(age: int, target_tier: RETIREMENT_TIER = RETIREMENT_TIER.BASIC) -> float:
     """Get the EPF savings target for a given age and tier."""
     if not EPF_TARGETS:
         return 0
 
-    normalized_tier = tier.lower().strip()
+    normalized_tier = target_tier.value.lower().strip()
     if normalized_tier not in {"basic", "adequate", "enhanced"}:
         raise EPFDataError(
-            f"Unsupported EPF tier '{tier}'. Supported tiers: basic, adequate, enhanced."
+            f"Unsupported EPF tier '{target_tier}'. Supported tiers: basic, adequate, enhanced."
         )
 
     # Exact age -> exact tier lookup

@@ -30,6 +30,6 @@ pip install -r requirements.txt
 
 5. Run the following script to ensure you can fetch live market data:
 ```bash
-python live_data.py
+python3 data/live_data.py
 ```
 <img width="462" height="136" alt="Untitled" src="https://github.com/user-attachments/assets/98636cbe-63fd-4a40-b5c3-98d08c2a5582" />
