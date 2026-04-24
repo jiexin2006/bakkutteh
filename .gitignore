@@ -1,0 +1,16 @@
+# Environments and Secrets
+.env
+venv/
+env/
+
+# Python Ignored Files
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+
+# Flutter Ignored Files
+/build/
+.dart_tool/
+.packages
+.pub-cache/
+.pub/
