@@ -2,43 +2,58 @@
   "users": [
     {
       "user_id": "U001",
-      "persona": "The Struggling Student",
+      "persona": "The Struggling Student", // Low money, High Risk
       "age": 21,
       "monthly_salary_rm": 1200,
       "fixed_liabilities_rm": 800,
       "current_surplus_rm": 100,
       "epf_balance_rm": 500,
-      "risk_appetite": "High"
+      "risk_appetite": "High",
+      "target_retirement_tier": "Enhanced"
     },
     {
       "user_id": "U002",
-      "persona": "The Fresh Graduate",
+      "persona": "The Fresh Graduate", //Low money, Med Risk
       "age": 24,
       "monthly_salary_rm": 3500,
       "fixed_liabilities_rm": 2000,
       "current_surplus_rm": 500,
       "epf_balance_rm": 8000,
-      "risk_appetite": "Medium"
+      "risk_appetite": "Medium",
+      "target_retirement_tier": "Basic"
     },
     {
       "user_id": "U003",
-      "persona": "The Stable Earner (Low Savings)",
+      "persona": "The Stable Earner (Low Savings)", //Low money, Low Risk
       "age": 35,
       "monthly_salary_rm": 5000,
       "fixed_liabilities_rm": 4000,
       "current_surplus_rm": 200,
       "epf_balance_rm": 15000,
-      "risk_appetite": "Low"
+      "risk_appetite": "Low",
+      "target_retirement_tier": "Basic"
     },
     {
       "user_id": "U004",
-      "persona": "The Ideal Target",
+      "persona": "The Ideal Target", //High money, Med Risk
       "age": 28,
       "monthly_salary_rm": 4200,
       "fixed_liabilities_rm": 2500,
       "current_surplus_rm": 800,
       "epf_balance_rm": 35000,
-      "risk_appetite": "Medium"
+      "risk_appetite": "Medium",
+      "target_retirement_tier": "Adequate"
+    },
+    {
+      "user_id": "U005",
+      "persona": "The Aggressive Wealth Builder", //High money,Low Risk
+      "age": 30,
+      "monthly_salary_rm": 8500,
+      "fixed_liabilities_rm": 3000,
+      "current_surplus_rm": 2500,
+      "epf_balance_rm": 65000,
+      "risk_appetite": "High",
+      "target_retirement_tier": "Enhanced"
     }
   ]
 }
