@@ -1,0 +1,61 @@
+{
+  "last_updated": "2026-04-24",
+  "base_currency": "MYR",
+  "epf_dividend_rate_pct": 5.40,
+  "fixed_deposits": [
+    {
+      "bank_name": "Alliance Bank",
+      "account_type": "e-Fixed Deposit",
+      "tenure_months": 3,
+      "interest_rate_pct": 2.30,
+      "min_placement_rm": 500,
+      "liquidity": "Locked (Short Term)",
+      "risk_level": "Zero"
+    },
+    {
+      "bank_name": "Maybank",
+      "account_type": "e-Islamic Fixed Deposit-i",
+      "tenure_months": 3,
+      "interest_rate_pct": 3.40,
+      "min_placement_rm": 1000,
+      "liquidity": "Locked (Short Term)",
+      "risk_level": "Zero"
+    },
+    {
+      "bank_name": "Maybank",
+      "account_type": "e-Fixed Deposit",
+      "tenure_months": 6,
+      "interest_rate_pct": 1.95,
+      "min_placement_rm": 1000,
+      "liquidity": "Locked (Medium Term)",
+      "risk_level": "Zero"
+    },
+    {
+      "bank_name": "Maybank",
+      "account_type": "e-Fixed Deposit",
+      "tenure_months": 12,
+      "interest_rate_pct": 1.95,
+      "min_placement_rm": 1000,
+      "liquidity": "Locked (Long Term)",
+      "risk_level": "Zero"
+    },
+    {
+      "bank_name": "Alliance Bank",
+      "account_type": "e-Fixed Deposit",
+      "tenure_months": 12,
+      "interest_rate_pct": 2.45,
+      "min_placement_rm": 500,
+      "liquidity": "Locked (Long Term)",
+      "risk_level": "Zero"
+    },
+    {
+      "bank_name": "Maybank",
+      "account_type": "e-Islamic Fixed Deposit-i",
+      "tenure_months": 12,
+      "interest_rate_pct": 3.55,
+      "min_placement_rm": 1000,
+      "liquidity": "Locked (Long Term)",
+      "risk_level": "Zero"
+    }
+  ]
+}
