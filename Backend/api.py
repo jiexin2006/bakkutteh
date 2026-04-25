@@ -10,8 +10,7 @@ from live_data import fetch_live_bitcoin
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, Field
-from pydantic import field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from ZAI import IlmuApiError
 from bitcoin_analyzer import BitcoinAnalyzer
@@ -32,13 +31,13 @@ if not logger.handlers:
 
 class AdvisoryRequest(BaseModel):
     name: str = Field(min_length=1)
-    age: int = Field(ge=18, le=100)
-    salary: float = Field(ge=0)
-    monthlyExpenses: float = Field(ge=0)
-    currentFD: float = Field(default=0, ge=0)
-    currentEPF: float = Field(default=0, ge=0)
-    cryptoHoldings: float = Field(default=0, ge=0)
-    fixedLiabilities: float = Field(default=0, ge=0)
+    age: int = Field(ge=18, le=120)
+    salary: float = Field(ge=0, le=1_000_000)
+    monthlyExpenses: float = Field(ge=0, le=1_000_000)
+    currentFD: float = Field(default=0, ge=0, le=20_000_000)
+    currentEPF: float = Field(default=0, ge=0, le=20_000_000)
+    cryptoHoldings: float = Field(default=0, ge=0, le=20_000_000)
+    fixedLiabilities: float = Field(default=0, ge=0, le=1_000_000)
     riskAppetite: str = Field(default="Moderate")
     epfDeductionRm: float = Field(default=0, ge=0)
     targetRetirementTier: str = Field(default="basic")
@@ -70,6 +69,14 @@ class AdvisoryRequest(BaseModel):
                 return 0
             return normalized
         return value
+
+    @model_validator(mode="after")
+    def validate_financial_logic(self) -> "AdvisoryRequest":
+        if self.monthlyExpenses > self.salary * 3:
+            raise ValueError("Monthly expenses are unreasonably high (more than 3x salary).")
+        if self.fixedLiabilities > self.salary * 10:
+            raise ValueError("Fixed liabilities are unreasonably high relative to monthly salary.")
+        return self
 
 
 class SavedUserProfileRequest(BaseModel):

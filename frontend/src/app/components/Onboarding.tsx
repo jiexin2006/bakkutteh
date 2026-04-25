@@ -34,6 +34,7 @@ export function Onboarding() {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitStage, setSubmitStage] = useState<string>("");
   const [elapsedSeconds, setElapsedSeconds] = useState<number>(0);
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const createNewProfile = Boolean(location.state?.createNewProfile);
 
   useEffect(() => {
@@ -131,9 +132,43 @@ export function Onboarding() {
   };
   // until here
 
+  const validateForm = (): boolean => {
+    const newErrors: Record<string, string> = {};
+    
+    if (!formData.name.trim()) newErrors.name = "Name is required";
+    
+    const age = toNumber(formData.age);
+    if (age < 18 || age > 120) newErrors.age = "Age must be between 18 and 120";
+    
+    const salary = toNumber(formData.salary);
+    if (salary < 0 || salary > 1000000) newErrors.salary = "Salary must be between RM0 and RM1,000,000";
+    
+    const expenses = toNumber(formData.monthlyExpenses);
+    if (expenses < 0 || expenses > 1000000) newErrors.monthlyExpenses = "Expenses must be between RM0 and RM1,000,000";
+    if (expenses > salary * 3) newErrors.monthlyExpenses = "Monthly expenses are unreasonably high (>3x salary)";
+    
+    const epf = toNumber(formData.currentEPF);
+    if (epf < 0 || epf > 20000000) newErrors.currentEPF = "EPF balance must be between RM0 and RM20,000,000";
+
+    const fd = toNumber(formData.currentFD);
+    if (fd < 0 || fd > 20000000) newErrors.currentFD = "FD balance must be between RM0 and RM20,000,000";
+
+    const crypto = toNumber(formData.cryptoHoldings);
+    if (crypto < 0 || crypto > 20000000) newErrors.cryptoHoldings = "Crypto holdings must be between RM0 and RM20,000,000";
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitError(null);
+    
+    if (!validateForm()) {
+      setSubmitError("Please fix the errors in the form before submitting.");
+      return;
+    }
+
     setIsSubmitting(true);
     setSubmitStage("Sending profile to backend...");
 
@@ -321,9 +356,20 @@ export function Onboarding() {
                     required
                     className={`w-full px-4 py-3 bg-[rgba(255,255,255,0.05)] border rounded-xl text-[#E8EDF3] placeholder:text-[#4A5568] transition-all duration-300 ${focusedField === field.name
                         ? "border-[#00D4FF] shadow-[0_0_20px_rgba(0,212,255,0.3)]"
+                        : errors[field.name]
+                        ? "border-red-500/50"
                         : "border-[rgba(255,255,255,0.1)]"
                       }`}
                   />
+                  {errors[field.name] && (
+                    <motion.p
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="text-red-400 text-xs mt-1 absolute"
+                    >
+                      {errors[field.name]}
+                    </motion.p>
+                  )}
                   {focusedField === field.name && (
                     <motion.div
                       layoutId="glow"

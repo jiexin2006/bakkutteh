@@ -31,6 +31,12 @@ export function ProfileSettings() {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const toNumber = (value: string): number => {
+    const normalized = value.replace(/,/g, "").trim();
+    return normalized ? Number(normalized) : 0;
+  };
 
   useEffect(() => {
     Promise.all([fetchProfiles(), fetchSavedUserData()])
@@ -69,6 +75,39 @@ export function ProfileSettings() {
     setMessage(null);
     setError(null);
     setIsSaving(true);
+
+    const validate = (): boolean => {
+      const newErrors: Record<string, string> = {};
+      if (!formData.name.trim()) newErrors.name = "Name is required";
+      
+      const age = toNumber(formData.age);
+      if (age < 18 || age > 120) newErrors.age = "Age must be between 18 and 120";
+      
+      const salary = toNumber(formData.salary);
+      if (salary < 0 || salary > 1000000) newErrors.salary = "Salary must be between RM0 and RM1,000,000";
+      
+      const expenses = toNumber(formData.monthlyExpenses);
+      if (expenses < 0 || expenses > 1000000) newErrors.monthlyExpenses = "Expenses must be between RM0 and RM1,000,000";
+      if (expenses > salary * 3) newErrors.monthlyExpenses = "Monthly expenses are unreasonably high (>3x salary)";
+      
+      const epf = toNumber(formData.currentEPF);
+      if (epf < 0 || epf > 20000000) newErrors.currentEPF = "EPF balance must be between RM0 and RM20,000,000";
+
+      const fd = toNumber(formData.currentFD);
+      if (fd < 0 || fd > 20000000) newErrors.currentFD = "FD balance must be between RM0 and RM20,000,000";
+
+      const crypto = toNumber(formData.cryptoHoldings);
+      if (crypto < 0 || crypto > 20000000) newErrors.cryptoHoldings = "Crypto holdings must be between RM0 and RM20,000,000";
+
+      setErrors(newErrors);
+      return Object.keys(newErrors).length === 0;
+    };
+
+    if (!validate()) {
+      setError("Please fix the errors before saving.");
+      setIsSaving(false);
+      return;
+    }
 
     if (!profileId) {
       setError("No active profile selected. Please choose a profile first.");
@@ -131,19 +170,30 @@ export function ProfileSettings() {
 
           <form className="mt-8 space-y-5" onSubmit={handleSave}>
             {fields.map((field) => (
-              <div key={field.name}>
+              <div key={field.name} className="relative">
                 <label htmlFor={field.name} className="block mb-2 text-[#E8EDF3]">
                   {field.label}
                 </label>
                 <input
                   id={field.name}
                   name={field.name}
+                  type="text"
                   value={formData[field.name as keyof UserData]}
                   onChange={handleChange}
                   placeholder={field.placeholder}
-                  required
-                  className="w-full px-4 py-3 bg-[rgba(255,255,255,0.05)] border border-[rgba(255,255,255,0.1)] rounded-xl text-[#E8EDF3]"
+                  className={`w-full px-4 py-3 bg-[rgba(255,255,255,0.05)] border rounded-xl text-[#E8EDF3] placeholder:text-[#4A5568] focus:border-[#00D4FF] focus:shadow-[0_0_20px_rgba(0,212,255,0.3)] outline-none transition-all duration-300 ${
+                    errors[field.name] ? "border-red-500/50" : "border-[rgba(255,255,255,0.1)]"
+                  }`}
                 />
+                {errors[field.name] && (
+                  <motion.p
+                    initial={{ opacity: 0, y: -5 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="text-red-400 text-xs mt-1 absolute"
+                  >
+                    {errors[field.name]}
+                  </motion.p>
+                )}
               </div>
             ))}
 
