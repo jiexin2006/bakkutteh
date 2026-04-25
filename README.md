@@ -5,7 +5,7 @@ The **Crypto-Integrated Financial Intelligence Advisor** is a sophisticated weal
 
 ---
 ## Demo Video 
-**Link:** [Coming Soon]
+**Link:** https://youtu.be/BkxYZ-k9HxI?si=pL1fakGRNNeL9kKW
 
 ---
 ## 📄 Documentation  
