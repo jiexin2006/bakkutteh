@@ -1,9 +1,11 @@
 # UM Hackathon 2026 – Team Bakkutteh  
 ## 💡 Crypto-Integrated Financial Intelligence Advisor  
 **Your AI Financial Guardian. Not Your Broker.**
-* **Demo Video:** [Coming Soon]
-
 The **Crypto-Integrated Financial Intelligence Advisor** is a sophisticated wealth management platform that bridges the gap between high-yield crypto speculation and long-term financial security (EPF, Fixed Deposits). By utilizing a **"Broker-Neutral"** logic, it acts as a fiduciary guardrail, preventing retail investors from over-leveraging based on hype.
+
+---
+## Demo Video 
+* **Link:** [Coming Soon]
 
 ---
 ## 📄 Documentation  
