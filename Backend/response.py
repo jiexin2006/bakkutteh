@@ -4,6 +4,7 @@ import json
 
 from Prompt import get_financial_reasoning_prompt
 from ZAI import ZAI
+from gemini import Gemini, GeminiError
 
 
 class ResponseParseError(ValueError):
@@ -61,7 +62,7 @@ def get_zai_response_json(
 	epf_analysis: dict,
 	market_data: dict,
 ) -> dict:
-	"""Call ZAI with prompt+data and return parsed JSON output."""
+	"""Call ZAI with prompt+data and return parsed JSON output. Falls back to Gemini on error."""
 	prompt = get_financial_reasoning_prompt(
 		user_data=user_data,
 		allocation=decision_context,
@@ -69,6 +70,29 @@ def get_zai_response_json(
 		fd_market_data=market_data,
 	)
 
-	zai = ZAI()
-	response_text = zai.chat_with_ilmu(prompt)
-	return parse_model_json(response_text)
+	try:
+		zai = ZAI()
+		response_text = zai.chat_with_ilmu(prompt)
+		return parse_model_json(response_text)
+	except Exception as exc:
+		print(f"--- [PRIMARY MODEL FAILED] ---")
+		print(f"Error: {exc}")
+		print(f"Action: Switching to Gemini Fallback Model...")
+		
+		try:
+			gemini = Gemini()
+			response_text = gemini.chat_with_ilmu(prompt)
+			print(f"[DEBUG] Gemini Raw Response: {response_text[:200]}...")
+			return parse_model_json(response_text)
+		except GeminiError as g_exc:
+			print(f"--- [FALLBACK MODEL FAILED] ---")
+			print(f"Gemini API Error: {g_exc}")
+			raise g_exc from exc
+		except ResponseParseError as p_exc:
+			print(f"--- [FALLBACK PARSE FAILED] ---")
+			print(f"Gemini output was not valid JSON: {p_exc}")
+			raise p_exc from exc
+		except Exception as g_exc:
+			print(f"--- [CRITICAL FAILURE] ---")
+			print(f"Unexpected Error during fallback: {g_exc}")
+			raise g_exc from exc

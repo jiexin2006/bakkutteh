@@ -37,7 +37,8 @@ class ZAI:
 
 		return ZaiClient(
 			api_key=API_KEY,
-			base_url="https://api.ilmu.ai/v1"
+			base_url="https://api.ilmu.ai/v1",
+			max_retries=0
 		)
 
 	def _extract_content(self, response: Any) -> str:
@@ -63,6 +64,7 @@ class ZAI:
 			stream=False,
 			max_tokens=4096,
 			temperature=0.6,
+			timeout=30.0,
 		)
 		return self._extract_content(response)
 	
