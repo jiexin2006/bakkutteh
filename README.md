@@ -142,10 +142,10 @@ Ensuring the system remains resilient and accountable:
 
 ---
 **Team Bakkutteh:** 
-Kan Hoi Yeng - Data Engineer 
-Chew Jee Syuen - Machine Learning Engineer 
-Chong Wah Yun - Intelligence Architect 
-Ho Hann Yi - Frontend Developer 
-Lim Jie Xin - Backend Developer 
+* **Kan Hoi Yeng** - Data Engineer 
+* **Chew Jee Syuen** - Machine Learning Engineer
+* **Chong Wah Yun** - Intelligence Architect 
+* **Ho Hann Yi** - Frontend Developer 
+* **Lim Jie Xin** - Backend Developer 
 
 
