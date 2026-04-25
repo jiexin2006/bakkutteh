@@ -520,6 +520,7 @@ def create_advisory(payload: AdvisoryRequest, request: Request) -> dict:
         logger.info("[%s] preparing market context", request_id)
         market_data = MarketData(
             bitcoin_price=payload.bitcoinPrice,
+            bitcoin_price_myr=payload.bitcoinPrice * 4.5,
             bitcoin_daily_change=payload.bitcoinDailyChange,
             bitcoin_7day_avg=payload.bitcoin7DayAvg,
             bitcoin_30day_avg=payload.bitcoin30DayAvg,

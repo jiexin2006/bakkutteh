@@ -25,20 +25,7 @@
         "cryptoHoldings": "0"
       },
       "saved_at": "2026-04-25T14:35:21.354267"
-    },
-    {
-      "id": "8fc1d23b-f27f-40f9-9d72-17c02ceec13f",
-      "user_data": {
-        "name": "hannyi",
-        "age": "19",
-        "salary": "6000",
-        "monthlyExpenses": "1000",
-        "currentFD": "10,000",
-        "currentEPF": "2500",
-        "cryptoHoldings": "0"
-      },
-      "saved_at": "2026-04-25T20:47:15.548038"
     }
   ],
-  "active_profile_id": "8fc1d23b-f27f-40f9-9d72-17c02ceec13f"
+  "active_profile_id": "a5f3da24-4a5c-478c-b6f5-cfcbaf4bc7da"
 }

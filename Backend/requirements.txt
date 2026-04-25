@@ -21,4 +21,4 @@ fastapi
 uvicorn
 python-dotenv
 h5py
-#tensorflow
+tensorflow
