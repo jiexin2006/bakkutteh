@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
-import { motion } from "motion/react";
+import { motion } from "framer-motion";
 import {
   TrendingUp,
   Shield,
@@ -60,6 +60,39 @@ function formatCurrency(value: number | string | undefined, fallback: string): s
     return fallback;
   }
   return numeric.toLocaleString();
+}
+
+// Add this helper function - EPF Health Color Helper
+function getEPFHealthColor(epfHealth: number): { 
+  fill: string; 
+  glowColor: string; 
+  textColor: string 
+} {
+  if (epfHealth >= 75) {
+    return {
+      fill: "#3EFFA3", // Green - On Track
+      glowColor: "rgba(62, 255, 163, 0.5)",
+      textColor: "#3EFFA3",
+    };
+  } else if (epfHealth >= 50) {
+    return {
+      fill: "#FFD166", // Yellow - Medium
+      glowColor: "rgba(255, 209, 102, 0.5)",
+      textColor: "#FFD166",
+    };
+  } else if (epfHealth >= 25) {
+    return {
+      fill: "#FF9A5A", // Orange - High
+      glowColor: "rgba(255, 154, 90, 0.5)",
+      textColor: "#FF9A5A",
+    };
+  } else {
+    return {
+      fill: "#FF5A6B", // Red - Critical
+      glowColor: "rgba(255, 90, 107, 0.5)",
+      textColor: "#FF5A6B",
+    };
+  }
 }
 
 export function Dashboard() {
@@ -142,6 +175,7 @@ export function Dashboard() {
     };
   }, []);
 
+  // Calculate EPF Health based on deficit percentage
   const epfHealth = Math.max(
     0,
     Math.min(
@@ -150,7 +184,12 @@ export function Dashboard() {
     ),
   );
 
-  const epfData = [{ name: "EPF Health", value: epfHealth, fill: "#3EFFA3" }];
+  // Get color based on health
+  const { fill, glowColor, textColor } = getEPFHealthColor(epfHealth);
+  
+  // Create data with dynamic fill
+  const epfData = [{ name: "EPF Health", value: epfHealth, fill: fill }];
+  
   const growthPriority = advisoryResponse?.epf_analysis?.priority_level || "No Priority";
   const growthColorClass =
     growthPriority === "Critical"
@@ -233,7 +272,7 @@ export function Dashboard() {
             transition={{ delay: 0.3 }}
             className="lg:col-span-7"
           >
-              <div className="backdrop-blur-xl bg-[rgba(30,34,42,0.4)] border border-[rgba(255,255,255,0.1)] rounded-2xl p-6 shadow-2xl h-full flex flex-col">
+            <div className="backdrop-blur-xl bg-[rgba(30,34,42,0.4)] border border-[rgba(255,255,255,0.1)] rounded-2xl p-6 shadow-2xl h-full flex flex-col">
               <div className="flex items-center gap-3 mb-6">
                 <div className="p-2 bg-[rgba(0,212,255,0.1)] rounded-lg">
                   <DollarSign className="w-6 h-6 text-[#00D4FF]" />
@@ -243,7 +282,7 @@ export function Dashboard() {
               {fdRankingsError && (
                 <p className="mb-4 text-sm text-[#FF8A8A]">{fdRankingsError}</p>
               )}
-                <div className="space-y-4 h-[22rem] overflow-y-auto pr-2">
+              <div className="space-y-4 h-[22rem] overflow-y-auto pr-2">
                 {fdRankings.length === 0 && !fdRankingsError && (
                   <p className="text-sm text-[#8B92A8]">Loading verified FD rankings from backend...</p>
                 )}
@@ -290,65 +329,79 @@ export function Dashboard() {
           >
             <div className="backdrop-blur-xl bg-[rgba(30,34,42,0.4)] border border-[rgba(255,255,255,0.1)] rounded-2xl p-6 shadow-2xl h-full">
               <div className="flex items-center gap-3 mb-6">
-                <div className="p-2 bg-[rgba(62,255,163,0.1)] rounded-lg">
-                  <Shield className="w-6 h-6 text-[#3EFFA3]" />
+                <div className="p-2 rounded-lg" style={{ backgroundColor: glowColor }}>
+                  <Shield className="w-6 h-6" style={{ color: textColor }} />
                 </div>
                 <h2 className="text-2xl text-[#E8EDF3]">EPF Health</h2>
               </div>
               <div className="flex items-center justify-center h-64 relative">
-              <ResponsiveContainer width="100%" height="100%">
-                <RadialBarChart
-                  cx="50%"
-                  cy="50%"
-                  innerRadius="60%"
-                  outerRadius="90%"
-                  barSize={20}
-                  data={epfData}
-                  startAngle={90}
-                  endAngle={-270}
-                >
-                  <defs>
-                    <filter id="glow" x="-20%" y="-20%" width="200%" height="200%">
-                      <feGaussianBlur stdDeviation="5" result="blur" />
-                      <feComposite in="SourceGraphic" in2="blur" operator="over" />
-                    </filter>
-                  </defs>
+                <ResponsiveContainer width="100%" height="100%">
+                  <RadialBarChart
+                    cx="50%"
+                    cy="50%"
+                    innerRadius="60%"
+                    outerRadius="90%"
+                    barSize={20}
+                    data={epfData}
+                    startAngle={90}
+                    endAngle={-270}
+                  >
+                    <defs>
+                      <filter id="glow" x="-20%" y="-20%" width="200%" height="200%">
+                        <feGaussianBlur stdDeviation="5" result="blur" />
+                        <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                      </filter>
+                    </defs>
 
-                  <RadialBar
-                    background
-                    dataKey="value"
-                    cornerRadius={10}
-                    fill="#3EFFA3"
-                    style={{ filter: "url(#glow)" }} 
-                  />
-                </RadialBarChart>
-              </ResponsiveContainer>
+                    <RadialBar
+                      background
+                      dataKey="value"
+                      cornerRadius={10}
+                      fill={fill}
+                      style={{ filter: "url(#glow)" }}
+                    />
+                  </RadialBarChart>
+                </ResponsiveContainer>
 
-              {/* Centered Text */}
-              <div className="absolute text-center">
-                <div className="text-4xl font-bold text-[#3EFFA3]">
-                  {Math.round(epfHealth)}%
+                {/* Centered Text */}
+                <div className="absolute text-center">
+                  <div className="text-4xl font-bold" style={{ color: textColor }}>
+                    {Math.round(epfHealth)}%
+                  </div>
+                  <p className="text-sm text-[#8B92A8] mt-1">
+                    {advisoryResponse?.epf_analysis?.status || "Optimal"}
+                  </p>
                 </div>
-                <p className="text-sm text-[#8B92A8] mt-1">
-                  {advisoryResponse?.epf_analysis?.status || "Optimal"}
-                </p>
               </div>
-            </div>
               <div className="mt-4 grid grid-cols-2 gap-4">
-                <div className="p-3 bg-[rgba(62,255,163,0.05)] rounded-lg border border-[rgba(62,255,163,0.2)]">
+                <div 
+                  className="p-3 rounded-lg border"
+                  style={{ 
+                    backgroundColor: `${glowColor}30`, 
+                    borderColor: `${textColor}50` 
+                  }}
+                >
                   <p className="text-xs text-[#8B92A8]">Balance</p>
-                  <p className="text-xl text-[#3EFFA3] mt-1">
+                  <p className="text-xl mt-1" style={{ color: textColor }}>
                     RM{formatCurrency(userData?.currentEPF, "500,000")}
                   </p>
                 </div>
-                <div className="p-3 bg-[rgba(62,255,163,0.05)] rounded-lg border border-[rgba(62,255,163,0.2)]">
+                <div 
+                  className="p-3 rounded-lg border"
+                  style={{ 
+                    backgroundColor: `${glowColor}30`, 
+                    borderColor: `${textColor}50` 
+                  }}
+                >
                   <p className="text-xs text-[#8B92A8]">Growth</p>
-                  <p className={`text-xl mt-1 ${growthColorClass}`}>
+                  <p className="text-xl mt-1" style={{ color: textColor }}>
                     {growthPriority}
                   </p>
                 </div>
               </div>
-              <p className="mt-4 text-center text-sm text-[#3EFFA3]">EPF Health Score: {Math.round(epfHealth)}%</p>
+              <p className="mt-4 text-center text-sm" style={{ color: textColor }}>
+                EPF Health Score: {Math.round(epfHealth)}%
+              </p>
             </div>
           </motion.div>
 
