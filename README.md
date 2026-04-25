@@ -13,7 +13,7 @@ The **Crypto-Integrated Financial Intelligence Advisor** is a sophisticated weal
 [Product Requirement Documentation (PRD)](https://drive.google.com/file/d/1GiCiEnwAKrbZuhnHU6FVOM9-A7nPGtQq/view?usp=drive_link)
 
 ### System Analysis Documentation (SAD)
-[System Analysis Documentation](https://drive.google.com/file/d/1N9DGb1Y-kU-P7rvdji3HjKYwPGoepq8T/view?usp=sharing))
+[System Analysis Documentation](https://drive.google.com/file/d/1N9DGb1Y-kU-P7rvdji3HjKYwPGoepq8T/view?usp=sharing)
 
 ### Sample Testing Analysis (Preliminary)
 [Sample Testing Analysis (Preliminary)](https://drive.google.com/file/d/1S8udVotqi3N2ueJG4FTpvbPBiVjJIOMz/view?usp=drive_link)
@@ -141,6 +141,11 @@ Ensuring the system remains resilient and accountable:
 * **On-Chain Audit Logs:** Use a lightweight blockchain ledger to create an immutable record of all AI advisory outputs. This ensures transparency—users can prove what the AI recommended at any specific point in time.
 
 ---
-**Team Bakkutteh:** Lim Jie Xin, Kan Hoi Yeng, Chew Jee Syuen, Chong Wah Yun, Ho Hann Yi.
+**Team Bakkutteh:** 
+Kan Hoi Yeng - Data Engineer 
+Chew Jee Syuen - Machine Learning Engineer 
+Chong Wah Yun - Intelligence Architect 
+Ho Hann Yi - Frontend Developer 
+Lim Jie Xin - Backend Developer 
 
 
