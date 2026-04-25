@@ -11,10 +11,11 @@ except ImportError as exc:
 	_ZAI_IMPORT_ERROR = exc
 
 
+from secrets_manager import get_secret
+
 MODEL = "ilmu-glm-5.1"
 
-load_dotenv()
-API_KEY = os.getenv("ILMU_API_KEY")
+API_KEY = get_secret("ILMU_API_KEY")
 
 class IlmuApiError(Exception):
 	"""Raised when ILMU API request fails."""

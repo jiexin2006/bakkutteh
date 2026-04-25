@@ -1,49 +1,58 @@
 import os
-import requests
-from dotenv import load_dotenv
+import logging
+from secrets_manager import get_secret
 
-# Ensure we load .env from the root directory and override any global env variables
-load_dotenv(os.path.join(os.path.dirname(__file__), '..', '.env'), override=True)
-API_KEY = os.getenv("GEMINI_API_KEY")
+# Configuration from Secret Manager / Env
+PROJECT_ID = get_secret("GCP_PROJECT_ID")
+LOCATION = get_secret("GCP_LOCATION", "us-central1")
+
+logger = logging.getLogger("bakkutteh.gemini")
 
 class GeminiError(Exception):
     """Raised when Gemini API request fails."""
 
 class Gemini:
     def __init__(self):
-        self.model = "gemini-flash-latest"
+        self.model_name = "gemini-1.5-flash"
+        self.client = None
+        
+        try:
+            # Import inside __init__ to avoid startup crashes if libraries are missing
+            from google import genai
+            
+            if PROJECT_ID:
+                # Initialize for Vertex AI (Google Cloud)
+                self.client = genai.Client(
+                    vertexai=True,
+                    project=PROJECT_ID,
+                    location=LOCATION
+                )
+                logger.info(f"Initialized Gemini via Google Gen AI SDK (Vertex AI Mode: {PROJECT_ID})")
+            else:
+                # Fallback to AI Studio if no Project ID (using API Key from Secret Manager)
+                api_key = get_secret("GEMINI_API_KEY")
+                if api_key:
+                    self.client = genai.Client(api_key=api_key)
+                    logger.info("Initialized Gemini via Google Gen AI SDK (AI Studio Mode)")
+        except ImportError:
+            logger.warning("google-genai library not found. Gemini fallback will be unavailable.")
+        except Exception as exc:
+            logger.error(f"Failed to initialize Google Gen AI client: {exc}")
 
     def chat(self, user_message: str) -> str:
-        """Call Gemini API and return the assistant's response text."""
-        if not API_KEY:
-            raise GeminiError("Missing GEMINI_API_KEY environment variable.")
-
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/{self.model}:generateContent"
-        headers = {
-            'Content-Type': 'application/json',
-            'X-goog-api-key': API_KEY
-        }
-        payload = {
-            "contents": [{
-                "parts": [{"text": user_message}]
-            }]
-        }
+        """Call Gemini via the unified Gen AI SDK and return response text."""
+        if not self.client:
+            raise GeminiError("Gemini client not initialized. Check GCP_PROJECT_ID or GEMINI_API_KEY.")
 
         try:
-            response = requests.post(url, headers=headers, json=payload, timeout=30)
-            response.raise_for_status()
-            
-            data = response.json()
-            try:
-                # Gemini response structure: data['candidates'][0]['content']['parts'][0]['text']
-                return data['candidates'][0]['content']['parts'][0]['text']
-            except (KeyError, IndexError) as exc:
-                raise GeminiError(f"Unexpected Gemini response format: {exc}") from exc
-        except requests.exceptions.RequestException as exc:
-            if exc.response is not None:
-                print(f"[ERROR] Gemini API Error Response: {exc.response.text}")
-            raise GeminiError(f"Gemini API request failed: {exc}") from exc
+            response = self.client.models.generate_content(
+                model=self.model_name,
+                contents=user_message
+            )
+            return response.text
+        except Exception as exc:
+            raise GeminiError(f"Google Gen AI request failed: {exc}") from exc
 
     def chat_with_ilmu(self, user_message: str) -> str:
-        """Alias for chat() to maintain parity with ZAI interface."""
+        """Maintain parity with ZAI interface."""
         return self.chat(user_message)

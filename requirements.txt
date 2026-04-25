@@ -12,7 +12,7 @@ numpy==2.4.4
 pandas==2.2.2
 peewee==4.0.5
 platformdirs==4.9.6
-protobuf==7.34.1
+protobuf>=6.31.1,<8.0.0
 pycparser==3.0
 Pygments==2.20.0
 python-dateutil==2.9.0.post0
@@ -31,4 +31,9 @@ fastapi
 uvicorn
 h5py
 tensorflow
-google-generativeai
+zai
+psycopg2-binary
+pydantic
+google-genai
+google-auth
+google-cloud-secret-manager

@@ -52,7 +52,21 @@
         "cryptoHoldings": "0"
       },
       "saved_at": "2026-04-25T21:16:09.187268"
+    },
+    {
+      "id": "08ca98c8-e9a1-4d5d-8d22-d5a8115b9d35",
+      "user_data": {
+        "name": "test_lowerbound",
+        "age": "18",
+        "salary": "1000",
+        "monthlyExpenses": "2000",
+        "currentFD": "0",
+        "currentEPF": "0",
+        "cryptoHoldings": "0",
+        "targetRetirementTier": "basic"
+      },
+      "saved_at": "2026-04-26T00:26:13.757154"
     }
   ],
-  "active_profile_id": "a4af730f-2599-4cb1-8814-f04a4788b6e4"
+  "active_profile_id": "08ca98c8-e9a1-4d5d-8d22-d5a8115b9d35"
 }
