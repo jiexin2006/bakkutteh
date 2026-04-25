@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router";
 import { motion } from "motion/react";
 import { ArrowLeft, Save } from "lucide-react";
-import { fetchProfiles, fetchSavedUserData, updateProfile, type UserData } from "../lib/api";
+import { fetchProfiles, fetchSavedUserData, updateProfile, fetchAdvisory, type UserData } from "../lib/api";
 
 const NUMERIC_FIELDS = new Set([
   "age",
@@ -21,6 +21,7 @@ const EMPTY_FORM: UserData = {
   currentFD: "",
   currentEPF: "",
   cryptoHoldings: "",
+  targetRetirementTier: "basic",
 };
 
 export function ProfileSettings() {
@@ -29,6 +30,7 @@ export function ProfileSettings() {
   const [formData, setFormData] = useState<UserData>(EMPTY_FORM);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     Promise.all([fetchProfiles(), fetchSavedUserData()])
@@ -66,17 +68,42 @@ export function ProfileSettings() {
     event.preventDefault();
     setMessage(null);
     setError(null);
+    setIsSaving(true);
 
     if (!profileId) {
       setError("No active profile selected. Please choose a profile first.");
+      setIsSaving(false);
       return;
     }
 
     try {
       await updateProfile(profileId, formData);
+
+      try {
+        const toNumber = (value: string): number => {
+          const normalized = value.replace(/,/g, "").trim();
+          return normalized ? Number(normalized) : 0;
+        };
+        const advisoryResponse = await fetchAdvisory({
+          name: formData.name,
+          age: toNumber(formData.age),
+          salary: toNumber(formData.salary),
+          monthlyExpenses: toNumber(formData.monthlyExpenses),
+          currentFD: toNumber(formData.currentFD),
+          currentEPF: toNumber(formData.currentEPF),
+          cryptoHoldings: toNumber(formData.cryptoHoldings),
+          targetRetirementTier: formData.targetRetirementTier,
+        });
+        localStorage.setItem("bakkutteh_advisory_response", JSON.stringify(advisoryResponse));
+      } catch (e) {
+        localStorage.removeItem("bakkutteh_advisory_response");
+      }
+
       setMessage("Profile updated successfully.");
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : "Failed to save profile");
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -120,15 +147,40 @@ export function ProfileSettings() {
               </div>
             ))}
 
+            <div>
+              <label htmlFor="targetRetirementTier" className="block mb-2 text-[#E8EDF3]">
+                EPF Saving Level
+              </label>
+              <div className="relative">
+                <select
+                  id="targetRetirementTier"
+                  name="targetRetirementTier"
+                  value={formData.targetRetirementTier}
+                  onChange={(e) => setFormData({ ...formData, targetRetirementTier: e.target.value })}
+                  className="w-full px-4 py-3 bg-[rgba(255,255,255,0.05)] border border-[rgba(255,255,255,0.1)] rounded-xl text-[#E8EDF3] appearance-none focus:border-[#00D4FF] outline-none transition-all duration-300"
+                >
+                  <option value="basic" className="bg-[#1E222A]">Basic</option>
+                  <option value="adequate" className="bg-[#1E222A]">Adequate</option>
+                  <option value="enhanced" className="bg-[#1E222A]">Enhanced</option>
+                </select>
+                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-[#8B92A8]">
+                  <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                    <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" />
+                  </svg>
+                </div>
+              </div>
+            </div>
+
             {message && <p className="text-sm text-[#3EFFA3]">{message}</p>}
             {error && <p className="text-sm text-[#FF8A8A]">{error}</p>}
 
             <button
               type="submit"
-              className="mt-2 px-6 py-3 rounded-xl bg-gradient-to-r from-[#00D4FF] to-[#B794F6] text-[#121418] flex items-center gap-2"
+              disabled={isSaving}
+              className={`mt-2 px-6 py-3 rounded-xl bg-gradient-to-r from-[#00D4FF] to-[#B794F6] text-[#121418] flex items-center gap-2 ${isSaving ? 'opacity-70 cursor-not-allowed' : ''}`}
             >
               <Save className="w-4 h-4" />
-              Save Changes
+              {isSaving ? "Saving..." : "Save Changes"}
             </button>
           </form>
         </div>

@@ -370,6 +370,11 @@ export function Dashboard() {
                   </div>
                   <p className="text-sm text-[#8B92A8] mt-1">
                     {advisoryResponse?.epf_analysis?.status || "Optimal"}
+                    {advisoryResponse?.epf_analysis?.target_epf_level && (
+                      <span className="block text-[10px] uppercase tracking-wider opacity-60">
+                        Level: {advisoryResponse.epf_analysis.target_epf_level}
+                      </span>
+                    )}
                   </p>
                 </div>
               </div>

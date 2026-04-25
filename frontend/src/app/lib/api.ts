@@ -20,6 +20,7 @@ export type UserData = {
   currentFD: string;
   currentEPF: string;
   cryptoHoldings: string;
+  targetRetirementTier: string;
 };
 
 export type AdvisoryAction = {
@@ -49,6 +50,7 @@ export type AdvisoryResponse = {
     priority_level: string;
     selected_target_rm: number;
     deficit_rm: number;
+    target_epf_level?: string;
   };
   market_signals: {
     bitcoin_signal: string;
@@ -105,7 +107,7 @@ export type ProfilesResponse = {
 };
 
 const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL?.trim() || "http://127.0.0.1:8000";
+  (import.meta as any).env.VITE_API_BASE_URL?.trim() || "http://127.0.0.1:8000";
 
 function createRequestId(): string {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
@@ -161,7 +163,9 @@ export async function fetchAdvisory(payload: AdvisoryRequest): Promise<AdvisoryR
 }
 
 export async function fetchFDRankings(limit = 6): Promise<FDRankingResponse> {
-  const response = await fetch(`${API_BASE_URL}/api/fd-rankings?limit=${limit}`);
+  const response = await fetch(`${API_BASE_URL}/api/fd-rankings?limit=${limit}`, {
+    cache: "no-store",
+  });
 
   if (!response.ok) {
     throw new Error("Failed to fetch FD rankings");
@@ -171,7 +175,9 @@ export async function fetchFDRankings(limit = 6): Promise<FDRankingResponse> {
 }
 
 export async function fetchBitcoinAdvisory(): Promise<BitcoinAdvisoryResponse> {
-  const response = await fetch(`${API_BASE_URL}/api/bitcoin-advisory`);
+  const response = await fetch(`${API_BASE_URL}/api/bitcoin-advisory`, {
+    cache: "no-store",
+  });
 
   if (!response.ok) {
     throw new Error("Failed to fetch Bitcoin advisory");
@@ -181,7 +187,9 @@ export async function fetchBitcoinAdvisory(): Promise<BitcoinAdvisoryResponse> {
 }
 
 export async function fetchSavedUserData(): Promise<UserData | null> {
-  const response = await fetch(`${API_BASE_URL}/api/saved-profile`);
+  const response = await fetch(`${API_BASE_URL}/api/saved-profile`, {
+    cache: "no-store",
+  });
   if (!response.ok) {
     throw new Error("Failed to fetch saved profile");
   }
@@ -204,7 +212,9 @@ export async function saveUserData(userData: UserData): Promise<void> {
 }
 
 export async function fetchProfiles(): Promise<ProfilesResponse> {
-  const response = await fetch(`${API_BASE_URL}/api/profiles`);
+  const response = await fetch(`${API_BASE_URL}/api/profiles`, {
+    cache: "no-store",
+  });
 
   if (!response.ok) {
     throw new Error("Failed to fetch profiles");

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { motion } from "motion/react";
 import { UserRound, PlusCircle, ArrowRight } from "lucide-react";
-import { fetchProfiles, selectProfile, type SavedProfileItem } from "../lib/api";
+import { fetchProfiles, selectProfile, fetchSavedUserData, fetchAdvisory, type SavedProfileItem } from "../lib/api";
 
 function formatSavedDate(value: string): string {
   const date = new Date(value);
@@ -17,6 +17,7 @@ export function ProfileSelector() {
   const [profiles, setProfiles] = useState<SavedProfileItem[]>([]);
   const [activeProfileId, setActiveProfileId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [switchingId, setSwitchingId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchProfiles()
@@ -31,10 +32,40 @@ export function ProfileSelector() {
 
   const handleSelectProfile = async (profileId: string) => {
     try {
+      setSwitchingId(profileId);
       await selectProfile(profileId);
-      navigate("/dashboard");
+      // Fetch the new user data after switching profile
+      const userData = await fetchSavedUserData();
+      
+      if (userData) {
+        try {
+          const toNumber = (value: string): number => {
+            const normalized = value.replace(/,/g, "").trim();
+            return normalized ? Number(normalized) : 0;
+          };
+          const advisoryResponse = await fetchAdvisory({
+            name: userData.name,
+            age: toNumber(userData.age),
+            salary: toNumber(userData.salary),
+            monthlyExpenses: toNumber(userData.monthlyExpenses),
+            currentFD: toNumber(userData.currentFD),
+            currentEPF: toNumber(userData.currentEPF),
+            cryptoHoldings: toNumber(userData.cryptoHoldings),
+            targetRetirementTier: userData.targetRetirementTier,
+          });
+          localStorage.setItem("bakkutteh_advisory_response", JSON.stringify(advisoryResponse));
+          navigate("/dashboard", { state: { userData, advisoryResponse } });
+        } catch (e) {
+          localStorage.removeItem("bakkutteh_advisory_response");
+          navigate("/dashboard", { state: { userData } });
+        }
+      } else {
+        navigate("/dashboard");
+      }
     } catch (selectError) {
       setError(selectError instanceof Error ? selectError.message : "Failed to select profile");
+    } finally {
+      setSwitchingId(null);
     }
   };
 
@@ -63,7 +94,8 @@ export function ProfileSelector() {
               key={profile.id}
               type="button"
               onClick={() => handleSelectProfile(profile.id)}
-              className="w-full text-left backdrop-blur-xl bg-[rgba(30,34,42,0.4)] border border-[rgba(255,255,255,0.1)] hover:border-[#00D4FF66] rounded-2xl p-5 shadow-2xl transition-colors"
+              disabled={switchingId !== null}
+              className={`w-full text-left backdrop-blur-xl bg-[rgba(30,34,42,0.4)] border border-[rgba(255,255,255,0.1)] hover:border-[#00D4FF66] rounded-2xl p-5 shadow-2xl transition-colors ${switchingId !== null ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
@@ -76,9 +108,14 @@ export function ProfileSelector() {
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
-                  {activeProfileId === profile.id && (
+                  {activeProfileId === profile.id && switchingId !== profile.id && (
                     <span className="text-xs px-2 py-1 rounded-full bg-[rgba(62,255,163,0.15)] text-[#3EFFA3]">
                       Active
+                    </span>
+                  )}
+                  {switchingId === profile.id && (
+                    <span className="text-xs px-2 py-1 rounded-full bg-[rgba(0,212,255,0.15)] text-[#00D4FF]">
+                      Loading...
                     </span>
                   )}
                   <ArrowRight className="w-4 h-4 text-[#8B92A8]" />

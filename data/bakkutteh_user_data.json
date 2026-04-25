@@ -8,10 +8,11 @@
         "salary": "50000",
         "monthlyExpenses": "1000",
         "currentFD": "0",
-        "currentEPF": "100",
-        "cryptoHoldings": "200"
+        "currentEPF": "1000",
+        "cryptoHoldings": "200",
+        "targetRetirementTier": "enhanced"
       },
-      "saved_at": "2026-04-25T12:32:30.550459"
+      "saved_at": "2026-04-25T22:04:35.673174"
     },
     {
       "id": "a5f3da24-4a5c-478c-b6f5-cfcbaf4bc7da",
@@ -25,7 +26,33 @@
         "cryptoHoldings": "0"
       },
       "saved_at": "2026-04-25T14:35:21.354267"
+    },
+    {
+      "id": "7acb257d-530c-47a8-81bb-b16b5f38b379",
+      "user_data": {
+        "name": "jie2",
+        "age": "45",
+        "salary": "10000",
+        "monthlyExpenses": "8000",
+        "currentFD": "10000",
+        "currentEPF": "100000",
+        "cryptoHoldings": "0"
+      },
+      "saved_at": "2026-04-25T21:11:35.473832"
+    },
+    {
+      "id": "710346ec-e48b-4d3f-b5cf-aa7ec4525213",
+      "user_data": {
+        "name": "Lucas Lim",
+        "age": "52",
+        "salary": "8000",
+        "monthlyExpenses": "6000",
+        "currentFD": "100000",
+        "currentEPF": "100000",
+        "cryptoHoldings": "0"
+      },
+      "saved_at": "2026-04-25T21:16:09.187268"
     }
   ],
-  "active_profile_id": "a5f3da24-4a5c-478c-b6f5-cfcbaf4bc7da"
+  "active_profile_id": "a4af730f-2599-4cb1-8814-f04a4788b6e4"
 }

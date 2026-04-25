@@ -27,6 +27,7 @@ export function Onboarding() {
     currentFD: "",
     currentEPF: "",
     cryptoHoldings: "",
+    targetRetirementTier: "basic",
   });
   const [focusedField, setFocusedField] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -146,6 +147,7 @@ export function Onboarding() {
         currentFD: toNumber(formData.currentFD),
         currentEPF: toNumber(formData.currentEPF),
         cryptoHoldings: toNumber(formData.cryptoHoldings),
+        targetRetirementTier: formData.targetRetirementTier,
       });
 
       setSubmitStage("Advisory received. Rendering dashboard...");
@@ -167,7 +169,7 @@ export function Onboarding() {
       }
       localStorage.setItem(ADVISORY_STORAGE_KEY, JSON.stringify(advisoryResponse));
     } catch (error) {
-      
+
       const errorMessage = error instanceof Error ? error.message : "Unable to generate advisory right now.";
       setSubmitStage("Live advisory failed. Loading temporary fallback...");
 
@@ -214,6 +216,7 @@ export function Onboarding() {
         currentFD: "",
         currentEPF: "",
         cryptoHoldings: "",
+        targetRetirementTier: "basic",
       });
       setSubmitError(null);
       localStorage.removeItem(ADVISORY_STORAGE_KEY);
@@ -316,11 +319,10 @@ export function Onboarding() {
                     onBlur={() => setFocusedField(null)}
                     placeholder={field.placeholder}
                     required
-                    className={`w-full px-4 py-3 bg-[rgba(255,255,255,0.05)] border rounded-xl text-[#E8EDF3] placeholder:text-[#4A5568] transition-all duration-300 ${
-                      focusedField === field.name
+                    className={`w-full px-4 py-3 bg-[rgba(255,255,255,0.05)] border rounded-xl text-[#E8EDF3] placeholder:text-[#4A5568] transition-all duration-300 ${focusedField === field.name
                         ? "border-[#00D4FF] shadow-[0_0_20px_rgba(0,212,255,0.3)]"
                         : "border-[rgba(255,255,255,0.1)]"
-                    }`}
+                      }`}
                   />
                   {focusedField === field.name && (
                     <motion.div
@@ -333,6 +335,34 @@ export function Onboarding() {
                 </div>
               </motion.div>
             ))}
+
+            <motion.div
+              initial={{ x: -20, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              transition={{ delay: 0.5 + 7 * 0.1 }}
+            >
+              <label htmlFor="targetRetirementTier" className="block mb-2 text-[#E8EDF3]">
+                EPF Saving Level
+              </label>
+              <div className="relative">
+                <select
+                  id="targetRetirementTier"
+                  name="targetRetirementTier"
+                  value={formData.targetRetirementTier}
+                  onChange={(e) => setFormData({ ...formData, targetRetirementTier: e.target.value })}
+                  className="w-full px-4 py-3 bg-[rgba(255,255,255,0.05)] border border-[rgba(255,255,255,0.1)] rounded-xl text-[#E8EDF3] appearance-none focus:border-[#00D4FF] focus:shadow-[0_0_20px_rgba(0,212,255,0.3)] outline-none transition-all duration-300"
+                >
+                  <option value="basic" className="bg-[#1E222A]">Basic</option>
+                  <option value="adequate" className="bg-[#1E222A]">Adequate</option>
+                  <option value="enhanced" className="bg-[#1E222A]">Enhanced</option>
+                </select>
+                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-[#8B92A8]">
+                  <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                    <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" />
+                  </svg>
+                </div>
+              </div>
+            </motion.div>
           </div>
 
           <motion.button
