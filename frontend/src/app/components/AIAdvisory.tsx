@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { motion } from "motion/react";
 import {
@@ -9,7 +10,26 @@ import {
   Coins,
   Sparkles,
 } from "lucide-react";
-import type { AdvisoryAction, AdvisoryResponse } from "../lib/api";
+import { fetchSavedUserData } from "../lib/api";
+import type { AdvisoryAction, AdvisoryResponse, UserData } from "../lib/api";
+
+const ADVISORY_STORAGE_KEY = "bakkutteh_advisory_response";
+
+function readStorage<T>(key: string): T | undefined {
+  try {
+    const value = localStorage.getItem(key);
+    return value ? (JSON.parse(value) as T) : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function parseMoney(value: unknown): number {
+  if (typeof value === "number") return value;
+  if (typeof value !== "string") return 0;
+  const numeric = Number(value.replace(/,/g, "").trim());
+  return Number.isFinite(numeric) ? numeric : 0;
+}
 
 const allocations = [
   {
@@ -43,7 +63,7 @@ const strategies = [
     priority: "1st Priority",
     title: "Maximize Fixed Deposit Returns",
     description:
-      "Allocate ₹2,50,000 to SBI Fixed Deposit at 7.1% p.a. This provides stable, guaranteed returns with minimal risk exposure. The 90-day lock-in period aligns with your liquidity requirements.",
+      "Allocate RM2,50,000 to SBI Fixed Deposit at 7.1% p.a. This provides stable, guaranteed returns with minimal risk exposure. The 90-day lock-in period aligns with your liquidity requirements.",
     reasoning: [
       "Highest rate among top-tier banks",
       "Government-backed security",
@@ -57,7 +77,7 @@ const strategies = [
     priority: "2nd Priority",
     title: "Strategic Crypto Positioning",
     description:
-      "Invest ₹1,00,000 in Bitcoin during the current accumulation phase. Technical indicators show strong buy signals with RSI at 45 and MACD crossover detected. Target 15-20% returns in Q2 2026.",
+      "Invest RM1,00,000 in Bitcoin during the current accumulation phase. Technical indicators show strong buy signals with RSI at 45 and MACD crossover detected. Target 15-20% returns in Q2 2026.",
     reasoning: [
       "Market shows bullish reversal pattern",
       "Institutional accumulation detected",
@@ -71,7 +91,7 @@ const strategies = [
     priority: "3rd Priority",
     title: "EPF Long-term Stability",
     description:
-      "Maintain ₹1,50,000 annual EPF contribution for retirement corpus building. Current 8.15% interest rate combined with employer matching doubles your wealth creation velocity.",
+      "Maintain RM1,50,000 annual EPF contribution for retirement corpus building. Current 8.15% interest rate combined with employer matching doubles your wealth creation velocity.",
     reasoning: [
       "Tax-free compound growth",
       "Employer contribution match",
@@ -86,25 +106,58 @@ const strategies = [
 export function AIAdvisory() {
   const location = useLocation();
   const navigate = useNavigate();
-  const advisoryResponse = location.state?.advisoryResponse as AdvisoryResponse | undefined;
+  const [userData, setUserData] = useState<UserData | undefined>(location.state?.userData);
+  const advisoryResponse =
+    (location.state?.advisoryResponse as AdvisoryResponse | undefined) ??
+    readStorage<AdvisoryResponse>(ADVISORY_STORAGE_KEY);
+
+  useEffect(() => {
+    if (userData) {
+      return;
+    }
+
+    fetchSavedUserData()
+      .then((savedProfile) => {
+        if (savedProfile) {
+          setUserData(savedProfile);
+        }
+      })
+      .catch(() => {
+        // Keep defaults when saved profile is unavailable.
+      });
+  }, [userData]);
+
+  const salary = parseMoney(userData?.salary);
+  const monthlyExpenses = parseMoney(userData?.monthlyExpenses);
+  const monthlySurplus = Math.max(0, salary - monthlyExpenses);
+  const currentFD = parseMoney(userData?.currentFD);
+  const currentEPF = parseMoney(userData?.currentEPF);
+  const cryptoHoldings = parseMoney(userData?.cryptoHoldings);
+  const computedTotal = Math.max(0, currentFD + currentEPF + cryptoHoldings + monthlySurplus);
 
   const modelActions: AdvisoryAction[] = advisoryResponse?.advisory_json?.action_plan || [];
-  const modelAllocations = modelActions
+  const sortedModelAllocations = modelActions
     .map((item) => {
       const percentage = Number.parseFloat(item.percentage.replace("%", "").trim());
       if (Number.isNaN(percentage)) {
         return null;
       }
       return {
+        ...item,
         category: item.category,
-        amount: Math.round((500000 * percentage) / 100),
+        amount: Math.round((computedTotal * percentage) / 100),
         percentage,
       };
     })
-    .filter((item): item is { category: string; amount: number; percentage: number } => item !== null);
+    .filter(
+      (
+        item,
+      ): item is AdvisoryAction & { category: string; amount: number; percentage: number } => item !== null,
+    )
+    .sort((left, right) => right.percentage - left.percentage);
 
-  const displayAllocations = modelAllocations.length
-    ? modelAllocations.map((item) => {
+  const displayAllocations = sortedModelAllocations.length
+    ? sortedModelAllocations.map((item) => {
         const palette = item.category.toLowerCase().includes("epf")
           ? { icon: Target, color: "#3EFFA3", bgColor: "rgba(62, 255, 163, 0.1)" }
           : item.category.toLowerCase().includes("fd")
@@ -116,10 +169,13 @@ export function AIAdvisory() {
           ...palette,
         };
       })
-    : allocations;
+    : allocations.map((item) => ({
+        ...item,
+        amount: Math.round((computedTotal * item.percentage) / 100),
+      }));
 
-  const displayStrategies = modelActions.length
-    ? modelActions.map((action, index) => {
+  const displayStrategies = sortedModelAllocations.length
+    ? sortedModelAllocations.map((action, index) => {
         const gradients = [
           "from-[#00D4FF] to-[#00A3CC]",
           "from-[#B794F6] to-[#FFD700]",
@@ -133,7 +189,7 @@ export function AIAdvisory() {
           : Coins;
 
         return {
-          priority: `${index + 1} Priority`,
+          priority: `${index + 1}${index === 0 ? "st" : index === 1 ? "nd" : index === 2 ? "rd" : "th"} Priority`,
           title: `${action.category}: ${action.percentage}`,
           description: action.action,
           reasoning: [action.reasoning],
@@ -159,12 +215,35 @@ export function AIAdvisory() {
           className="mb-8"
         >
           <button
-            onClick={() => navigate("/dashboard")}
+            onClick={() =>
+              navigate("/dashboard", {
+                state: {
+                  userData,
+                  advisoryResponse,
+                },
+              })
+            }
             className="flex items-center gap-2 text-[#8B92A8] hover:text-[#00D4FF] transition-colors mb-4"
           >
             <ArrowLeft className="w-5 h-5" />
             <span>Back to Dashboard</span>
           </button>
+          <div className="mb-4 flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => navigate("/profile")}
+              className="px-4 py-2 rounded-lg border border-[rgba(255,255,255,0.15)] text-[#E8EDF3] hover:border-[#00D4FF] hover:text-[#00D4FF] transition-colors"
+            >
+              Profile Info
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate("/profiles")}
+              className="px-4 py-2 rounded-lg border border-[rgba(255,255,255,0.15)] text-[#E8EDF3] hover:border-[#3EFFA3] hover:text-[#3EFFA3] transition-colors"
+            >
+              Switch Profile
+            </button>
+          </div>
           <div className="flex items-center gap-3">
             <div className="p-3 bg-gradient-to-br from-[#B794F6] to-[#FFD700] rounded-xl">
               <Brain className="w-8 h-8 text-[#121418]" />
@@ -222,7 +301,7 @@ export function AIAdvisory() {
                         className="text-3xl"
                         style={{ color: allocation.color }}
                       >
-                        ₹{allocation.amount.toLocaleString()}
+                        RM{allocation.amount.toLocaleString()}
                       </span>
                       <span className="text-[#8B92A8] text-sm">
                         ({allocation.percentage}%)
@@ -244,7 +323,7 @@ export function AIAdvisory() {
               </div>
               <div className="mt-6 p-4 bg-[rgba(255,255,255,0.03)] rounded-xl border border-[rgba(255,255,255,0.1)]">
                 <p className="text-sm text-[#8B92A8] mb-2">Total Portfolio</p>
-                <p className="text-3xl text-[#E8EDF3]">₹5,00,000</p>
+                <p className="text-3xl text-[#E8EDF3]">RM{computedTotal.toLocaleString()}</p>
                 <div className="mt-3 flex items-center gap-2 text-[#3EFFA3] text-sm">
                   <TrendingUp className="w-4 h-4" />
                   <span>{advisoryResponse?.advisory_json?.overall_strategy || "Expected Annual Return: 9.2%"}</span>
@@ -299,7 +378,7 @@ export function AIAdvisory() {
                           {strategy.priority}
                         </span>
                         <h3 className="text-xl text-[#E8EDF3]">
-                          {strategy.title}
+                          {strategy.title}%
                         </h3>
                       </div>
                       <p className="text-[#8B92A8] mb-4 leading-relaxed">

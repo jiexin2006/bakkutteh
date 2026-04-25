@@ -2,7 +2,10 @@ from __future__ import annotations
 
 from datetime import datetime
 import logging
+import json
+from pathlib import Path
 from uuid import uuid4
+from typing import Any
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -68,7 +71,18 @@ class AdvisoryRequest(BaseModel):
         return value
 
 
+class SavedUserProfileRequest(BaseModel):
+    user_data: dict[str, str]
+
+
+class SelectProfileRequest(BaseModel):
+    profile_id: str
+
+
 app = FastAPI(title="Bakkutteh Financial Advisor API", version="1.0.0")
+
+DATA_DIR = Path(__file__).resolve().parent.parent / "data"
+SAVED_USER_DATA_PATH = DATA_DIR / "bakkutteh_user_data.json"
 
 app.add_middleware(
     CORSMiddleware,
@@ -93,6 +107,281 @@ def _build_decision_context(epf_analysis: dict, user_profile: UserProfile) -> di
         "deficit_rm": epf_analysis["deficit_rm"],
         "deficit_percentage": epf_analysis["deficit_percentage"],
     }
+
+
+def _default_profile_store() -> dict[str, Any]:
+    return {
+        "profiles": [],
+        "active_profile_id": None,
+    }
+
+
+def _normalize_profile_store(raw_payload: Any) -> dict[str, Any]:
+    store = _default_profile_store()
+
+    if not isinstance(raw_payload, dict):
+        return store
+
+    profiles_payload = raw_payload.get("profiles")
+    if isinstance(profiles_payload, list):
+        normalized_profiles = []
+        for item in profiles_payload:
+            if not isinstance(item, dict):
+                continue
+            user_data = item.get("user_data")
+            profile_id = item.get("id")
+            if not isinstance(user_data, dict):
+                continue
+            if not isinstance(profile_id, str) or not profile_id.strip():
+                profile_id = str(uuid4())
+            normalized_profiles.append(
+                {
+                    "id": profile_id,
+                    "user_data": user_data,
+                    "saved_at": item.get("saved_at") or datetime.now().isoformat(),
+                }
+            )
+        store["profiles"] = normalized_profiles
+        active_profile_id = raw_payload.get("active_profile_id")
+        if isinstance(active_profile_id, str):
+            store["active_profile_id"] = active_profile_id
+        return store
+
+    # Backward compatibility for old single-profile shape.
+    legacy_user_data = raw_payload.get("user_data")
+    if isinstance(legacy_user_data, dict):
+        migrated_profile_id = str(uuid4())
+        store["profiles"] = [
+            {
+                "id": migrated_profile_id,
+                "user_data": legacy_user_data,
+                "saved_at": raw_payload.get("saved_at") or datetime.now().isoformat(),
+            }
+        ]
+        store["active_profile_id"] = migrated_profile_id
+
+    return store
+
+
+def _read_profile_store() -> dict[str, Any]:
+    if not SAVED_USER_DATA_PATH.exists():
+        return _default_profile_store()
+
+    with SAVED_USER_DATA_PATH.open("r", encoding="utf-8") as file_handle:
+        payload = json.load(file_handle)
+
+    return _normalize_profile_store(payload)
+
+
+def _write_profile_store(store: dict[str, Any]) -> None:
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    with SAVED_USER_DATA_PATH.open("w", encoding="utf-8") as file_handle:
+        json.dump(store, file_handle, indent=2)
+
+
+def _active_profile_from_store(store: dict[str, Any]) -> dict[str, Any] | None:
+    active_profile_id = store.get("active_profile_id")
+    profiles = store.get("profiles") or []
+    if not isinstance(active_profile_id, str):
+        return None
+
+    for profile in profiles:
+        if isinstance(profile, dict) and profile.get("id") == active_profile_id:
+            return profile
+    return None
+
+
+def _load_saved_user_data() -> dict[str, str] | None:
+    store = _read_profile_store()
+    active_profile = _active_profile_from_store(store)
+    if not isinstance(active_profile, dict):
+        return None
+    user_data = active_profile.get("user_data")
+    return user_data if isinstance(user_data, dict) else None
+
+
+def _save_user_data(user_data: dict[str, str]) -> None:
+    store = _read_profile_store()
+    profiles = store.get("profiles") or []
+    active_profile = _active_profile_from_store(store)
+
+    if isinstance(active_profile, dict):
+        active_profile["user_data"] = user_data
+        active_profile["saved_at"] = datetime.now().isoformat()
+    else:
+        new_profile_id = str(uuid4())
+        profiles.append(
+            {
+                "id": new_profile_id,
+                "user_data": user_data,
+                "saved_at": datetime.now().isoformat(),
+            }
+        )
+        store["active_profile_id"] = new_profile_id
+
+    store["profiles"] = profiles
+    _write_profile_store(store)
+
+
+def _profile_label(profile: dict[str, Any]) -> str:
+    user_data = profile.get("user_data")
+    if isinstance(user_data, dict):
+        name = user_data.get("name")
+        if isinstance(name, str) and name.strip():
+            return name.strip()
+    return "Unnamed Profile"
+
+
+def _build_bitcoin_market_data() -> MarketData:
+    """Build a MarketData snapshot from the machine_learning CSV for Bitcoin fallback/model use."""
+    history_rows = BitcoinAnalyzer.load_training_history()
+    latest_row = history_rows[-1] if history_rows else {}
+
+    bitcoin_price = float(latest_row.get("Close", 47500) or 47500)
+    bitcoin_7day_avg = float(latest_row.get("7_Day_MA", bitcoin_price) or bitcoin_price)
+    bitcoin_30day_avg = float(latest_row.get("30_Day_MA", bitcoin_price) or bitcoin_price)
+    bitcoin_daily_change = float(latest_row.get("7_Day_Momentum_%", latest_row.get("Daily_Volatility_%", 0.0)) or 0.0)
+
+    return MarketData(
+        bitcoin_price=bitcoin_price,
+        bitcoin_daily_change=bitcoin_daily_change,
+        bitcoin_7day_avg=bitcoin_7day_avg,
+        bitcoin_30day_avg=bitcoin_30day_avg,
+        fd_rates=FD_RATES,
+        epf_interest_rate=EPF_INTEREST_RATE,
+        timestamp=datetime.now(),
+    )
+
+
+@app.get("/api/fd-rankings")
+def get_fd_rankings(limit: int = 6) -> dict:
+    """Return verified FD rankings from the backend data file."""
+    fd_context = get_fd_prompt_context(limit=limit)
+    return {
+        "epf_dividend_rate_pct": fd_context["epf_dividend_rate_pct"],
+        "verified_market_rates": fd_context["verified_market_rates"],
+    }
+
+
+@app.get("/api/saved-profile")
+def get_saved_profile() -> dict:
+    saved_profile = _load_saved_user_data()
+    return {"user_data": saved_profile}
+
+
+@app.put("/api/saved-profile")
+def save_profile(payload: SavedUserProfileRequest) -> dict:
+    _save_user_data(payload.user_data)
+    return {"status": "saved", "path": str(SAVED_USER_DATA_PATH)}
+
+
+@app.delete("/api/saved-profile")
+def reset_saved_profile() -> dict:
+    store = _read_profile_store()
+    active_profile_id = store.get("active_profile_id")
+    profiles = store.get("profiles") or []
+
+    if isinstance(active_profile_id, str):
+        profiles = [
+            profile
+            for profile in profiles
+            if isinstance(profile, dict) and profile.get("id") != active_profile_id
+        ]
+
+    store["profiles"] = profiles
+    store["active_profile_id"] = profiles[0].get("id") if profiles else None
+
+    if not profiles and SAVED_USER_DATA_PATH.exists():
+        SAVED_USER_DATA_PATH.unlink()
+    elif profiles:
+        _write_profile_store(store)
+
+    return {"status": "reset"}
+
+
+@app.get("/api/profiles")
+def get_profiles() -> dict:
+    store = _read_profile_store()
+    profiles = store.get("profiles") or []
+
+    return {
+        "active_profile_id": store.get("active_profile_id"),
+        "profiles": [
+            {
+                "id": profile.get("id"),
+                "name": _profile_label(profile),
+                "saved_at": profile.get("saved_at"),
+                "user_data": profile.get("user_data"),
+            }
+            for profile in profiles
+            if isinstance(profile, dict)
+        ],
+    }
+
+
+@app.post("/api/profiles/select")
+def select_profile(payload: SelectProfileRequest) -> dict:
+    store = _read_profile_store()
+    profiles = store.get("profiles") or []
+    for profile in profiles:
+        if isinstance(profile, dict) and profile.get("id") == payload.profile_id:
+            store["active_profile_id"] = payload.profile_id
+            _write_profile_store(store)
+            return {"status": "selected", "active_profile_id": payload.profile_id}
+
+    raise HTTPException(status_code=404, detail="Profile not found")
+
+
+@app.put("/api/profiles/{profile_id}")
+def update_profile(profile_id: str, payload: SavedUserProfileRequest) -> dict:
+    store = _read_profile_store()
+    profiles = store.get("profiles") or []
+
+    for profile in profiles:
+        if isinstance(profile, dict) and profile.get("id") == profile_id:
+            profile["user_data"] = payload.user_data
+            profile["saved_at"] = datetime.now().isoformat()
+            _write_profile_store(store)
+            return {"status": "updated", "profile_id": profile_id}
+
+    profiles.append(
+        {
+            "id": profile_id,
+            "user_data": payload.user_data,
+            "saved_at": datetime.now().isoformat(),
+        }
+    )
+    store["profiles"] = profiles
+    store["active_profile_id"] = profile_id
+    _write_profile_store(store)
+    return {"status": "created", "profile_id": profile_id}
+
+
+@app.post("/api/profiles")
+def create_profile(payload: SavedUserProfileRequest) -> dict:
+    store = _read_profile_store()
+    profiles = store.get("profiles") or []
+
+    new_profile_id = str(uuid4())
+    profiles.append(
+        {
+            "id": new_profile_id,
+            "user_data": payload.user_data,
+            "saved_at": datetime.now().isoformat(),
+        }
+    )
+    store["profiles"] = profiles
+    store["active_profile_id"] = new_profile_id
+    _write_profile_store(store)
+
+    return {"status": "created", "profile_id": new_profile_id}
+
+
+@app.get("/api/bitcoin-advisory")
+def get_bitcoin_advisory() -> dict:
+    """Return chart data and model output for the dashboard Bitcoin card."""
+    bitcoin_market_data = _build_bitcoin_market_data()
+    return BitcoinAnalyzer.get_dashboard_payload(bitcoin_market_data)
 
 
 def _build_temporary_fallback_advisory(

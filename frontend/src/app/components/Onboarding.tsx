@@ -1,13 +1,25 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router";
+import { useLocation, useNavigate } from "react-router";
 import { motion } from "motion/react";
 import { ArrowRight, Sparkles } from "lucide-react";
-import { fetchAdvisory } from "../lib/api";
-import type { AdvisoryResponse } from "../lib/api";
+import { createProfile, fetchAdvisory, fetchSavedUserData, resetSavedUserData, saveUserData } from "../lib/api";
+import type { AdvisoryResponse, UserData } from "../lib/api";
+
+const ADVISORY_STORAGE_KEY = "bakkutteh_advisory_response";
+
+const NUMERIC_FIELDS = new Set([
+  "age",
+  "salary",
+  "monthlyExpenses",
+  "currentFD",
+  "currentEPF",
+  "cryptoHoldings",
+]);
 
 export function Onboarding() {
   const navigate = useNavigate();
-  const [formData, setFormData] = useState({
+  const location = useLocation();
+  const [formData, setFormData] = useState<UserData>({
     name: "",
     age: "",
     salary: "",
@@ -21,6 +33,23 @@ export function Onboarding() {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitStage, setSubmitStage] = useState<string>("");
   const [elapsedSeconds, setElapsedSeconds] = useState<number>(0);
+  const createNewProfile = Boolean(location.state?.createNewProfile);
+
+  useEffect(() => {
+    if (createNewProfile) {
+      return;
+    }
+
+    fetchSavedUserData()
+      .then((savedProfile) => {
+        if (savedProfile) {
+          setFormData(savedProfile);
+        }
+      })
+      .catch(() => {
+        // Silently ignore profile load issues and keep defaults.
+      });
+  }, []);
 
   useEffect(() => {
     if (!isSubmitting) {
@@ -127,12 +156,32 @@ export function Onboarding() {
           advisoryResponse,
         },
       });
+      try {
+        if (createNewProfile) {
+          await createProfile(formData);
+        } else {
+          await saveUserData(formData);
+        }
+      } catch {
+        // Keep advisory flow available even if profile persistence is unavailable.
+      }
+      localStorage.setItem(ADVISORY_STORAGE_KEY, JSON.stringify(advisoryResponse));
     } catch (error) {
       
       const errorMessage = error instanceof Error ? error.message : "Unable to generate advisory right now.";
       setSubmitStage("Live advisory failed. Loading temporary fallback...");
 
       const advisoryResponse = buildLocalFallbackResponse(errorMessage);
+      try {
+        if (createNewProfile) {
+          await createProfile(formData);
+        } else {
+          await saveUserData(formData);
+        }
+      } catch {
+        // Keep fallback flow available even if profile persistence is unavailable.
+      }
+      localStorage.setItem(ADVISORY_STORAGE_KEY, JSON.stringify(advisoryResponse));
       navigate("/dashboard", {
         state: {
           userData: formData,
@@ -145,7 +194,32 @@ export function Onboarding() {
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    const sanitizedValue = NUMERIC_FIELDS.has(name)
+      ? value.replace(/[^0-9,]/g, "")
+      : value;
+
+    const nextFormData = { ...formData, [name]: sanitizedValue };
+    setFormData(nextFormData);
+  };
+
+  const handleResetSavedProfile = async () => {
+    try {
+      await resetSavedUserData();
+      setFormData({
+        name: "",
+        age: "",
+        salary: "",
+        monthlyExpenses: "",
+        currentFD: "",
+        currentEPF: "",
+        cryptoHoldings: "",
+      });
+      setSubmitError(null);
+      localStorage.removeItem(ADVISORY_STORAGE_KEY);
+    } catch {
+      setSubmitError("Unable to reset saved profile right now. Please try again.");
+    }
   };
 
   return (
@@ -187,37 +261,37 @@ export function Onboarding() {
               {
                 name: "age",
                 label: "Age",
-                type: "number",
+                type: "text",
                 placeholder: "30",
               },
               {
                 name: "salary",
-                label: "Monthly Salary (₹)",
-                type: "number",
+                label: "Monthly Salary (RM)",
+                type: "text",
                 placeholder: "50,000",
               },
               {
                 name: "monthlyExpenses",
-                label: "Monthly Expenses (₹)",
-                type: "number",
+                label: "Monthly Expenses (RM)",
+                type: "text",
                 placeholder: "30,000",
               },
               {
                 name: "currentFD",
-                label: "Current FD Amount (₹)",
-                type: "number",
+                label: "Current FD Amount (RM)",
+                type: "text",
                 placeholder: "100,000",
               },
               {
                 name: "currentEPF",
-                label: "Current EPF Balance (₹)",
-                type: "number",
+                label: "Current EPF Balance (RM)",
+                type: "text",
                 placeholder: "500,000",
               },
               {
                 name: "cryptoHoldings",
-                label: "Crypto Holdings (₹)",
-                type: "number",
+                label: "Crypto Holdings (RM)",
+                type: "text",
                 placeholder: "25,000",
               },
             ].map((field, index) => (
@@ -235,6 +309,7 @@ export function Onboarding() {
                     id={field.name}
                     name={field.name}
                     type={field.type}
+                    inputMode={NUMERIC_FIELDS.has(field.name) ? "numeric" : undefined}
                     value={formData[field.name as keyof typeof formData]}
                     onChange={handleChange}
                     onFocus={() => setFocusedField(field.name)}
@@ -288,6 +363,15 @@ export function Onboarding() {
         >
           Your data is encrypted and processed locally
         </motion.p>
+        <div className="mt-4 flex justify-center">
+          <button
+            type="button"
+            onClick={handleResetSavedProfile}
+            className="px-4 py-2 rounded-lg border border-[rgba(255,255,255,0.2)] text-sm text-[#E8EDF3] hover:border-[#00D4FF] hover:text-[#00D4FF] transition-colors"
+          >
+            Reset Saved Profile
+          </button>
+        </div>
       </div>
     </motion.div>
   );

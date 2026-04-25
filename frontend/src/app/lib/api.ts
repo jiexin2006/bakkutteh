@@ -12,11 +12,29 @@ export type AdvisoryRequest = {
   targetRetirementTier?: string;
 };
 
+export type UserData = {
+  name: string;
+  age: string;
+  salary: string;
+  monthlyExpenses: string;
+  currentFD: string;
+  currentEPF: string;
+  cryptoHoldings: string;
+};
+
 export type AdvisoryAction = {
   percentage: string;
   category: string;
   action: string;
   reasoning: string;
+};
+
+export type FDRanking = {
+  bank_name: string | null;
+  account_type: string | null;
+  tenure_months: number | null;
+  interest_rate_pct: number | null;
+  min_placement_rm: number | null;
 };
 
 export type AdvisoryResponse = {
@@ -43,6 +61,44 @@ export type AdvisoryResponse = {
     action_plan?: AdvisoryAction[];
     next_step?: string;
   };
+};
+
+export type FDRankingResponse = {
+  epf_dividend_rate_pct: number;
+  verified_market_rates: FDRanking[];
+};
+
+export type BitcoinAdvisoryPoint = {
+  time: string;
+  price: number;
+};
+
+export type BitcoinAdvisoryResponse = {
+  bitcoin_signal: string;
+  bitcoin_signal_label: string;
+  bitcoin_confidence: number;
+  bitcoin_trend: string;
+  forecast_change_pct: number;
+  forecast_price: number;
+  current_price: number;
+  crypto_data: BitcoinAdvisoryPoint[];
+  model_source: string;
+};
+
+export type SavedProfileResponse = {
+  user_data: UserData | null;
+};
+
+export type SavedProfileItem = {
+  id: string;
+  name: string;
+  saved_at: string;
+  user_data: UserData;
+};
+
+export type ProfilesResponse = {
+  active_profile_id: string | null;
+  profiles: SavedProfileItem[];
 };
 
 const API_BASE_URL =
@@ -99,4 +155,112 @@ export async function fetchAdvisory(payload: AdvisoryRequest): Promise<AdvisoryR
     hasActionPlan: Array.isArray(data?.advisory_json?.action_plan),
   });
   return data;
+}
+
+export async function fetchFDRankings(limit = 6): Promise<FDRankingResponse> {
+  const response = await fetch(`${API_BASE_URL}/api/fd-rankings?limit=${limit}`);
+
+  if (!response.ok) {
+    throw new Error("Failed to fetch FD rankings");
+  }
+
+  return (await response.json()) as FDRankingResponse;
+}
+
+export async function fetchBitcoinAdvisory(): Promise<BitcoinAdvisoryResponse> {
+  const response = await fetch(`${API_BASE_URL}/api/bitcoin-advisory`);
+
+  if (!response.ok) {
+    throw new Error("Failed to fetch Bitcoin advisory");
+  }
+
+  return (await response.json()) as BitcoinAdvisoryResponse;
+}
+
+export async function fetchSavedUserData(): Promise<UserData | null> {
+  const response = await fetch(`${API_BASE_URL}/api/saved-profile`);
+  if (!response.ok) {
+    throw new Error("Failed to fetch saved profile");
+  }
+  const payload = (await response.json()) as SavedProfileResponse;
+  return payload.user_data;
+}
+
+export async function saveUserData(userData: UserData): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/api/saved-profile`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ user_data: userData }),
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to save profile");
+  }
+}
+
+export async function fetchProfiles(): Promise<ProfilesResponse> {
+  const response = await fetch(`${API_BASE_URL}/api/profiles`);
+
+  if (!response.ok) {
+    throw new Error("Failed to fetch profiles");
+  }
+
+  return (await response.json()) as ProfilesResponse;
+}
+
+export async function selectProfile(profileId: string): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/api/profiles/select`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ profile_id: profileId }),
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to select profile");
+  }
+}
+
+export async function updateProfile(profileId: string, userData: UserData): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/api/profiles/${profileId}`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ user_data: userData }),
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to update profile");
+  }
+}
+
+export async function createProfile(userData: UserData): Promise<string> {
+  const response = await fetch(`${API_BASE_URL}/api/profiles`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ user_data: userData }),
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to create profile");
+  }
+
+  const payload = (await response.json()) as { profile_id: string };
+  return payload.profile_id;
+}
+
+export async function resetSavedUserData(): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/api/saved-profile`, {
+    method: "DELETE",
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to reset saved profile");
+  }
 }
