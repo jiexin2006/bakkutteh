@@ -2,7 +2,6 @@
 .env
 venv/
 env/
-.vscode/
 
 # Python Ignored Files
 __pycache__/
