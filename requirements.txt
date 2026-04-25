@@ -30,4 +30,4 @@ python-dotenv
 fastapi
 uvicorn
 h5py
-tensorflow
+#tensorflow
