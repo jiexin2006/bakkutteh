@@ -5,8 +5,8 @@ The **Crypto-Integrated Financial Intelligence Advisor** is a sophisticated weal
 
 ---
 ## Demo Video 
-* **Link:** https://youtu.be/BkxYZ-k9HxI?si=pL1fakGRNNeL9kKW
-* **Slides:** https://canva.link/4a8wpev55mmp1cg
+**Link:** https://youtu.be/BkxYZ-k9HxI?si=pL1fakGRNNeL9kKW
+
 ---
 ## 📄 Documentation  
 ### Product Requirement Documentation (PRD)
@@ -17,6 +17,9 @@ The **Crypto-Integrated Financial Intelligence Advisor** is a sophisticated weal
 
 ### Sample Testing Analysis (Preliminary)
 [Sample Testing Analysis (Preliminary)](https://drive.google.com/file/d/1S8udVotqi3N2ueJG4FTpvbPBiVjJIOMz/view?usp=drive_link)
+
+###Pitch Deck
+[Pitch Deck](https://drive.google.com/file/d/1jxSDeQnHh_lUqQo6ijO1PYYsgJmtHIgg/view?usp=drive_link)
 
 ---
 
