@@ -24,12 +24,16 @@ def fetch_live_bitcoin():
             "market_status": "Live"
         }
         
-        return json.dumps(crypto_state, indent=4)
+        return crypto_state
     
     except Exception as e:
-        return f"[ERROR] Failed to fetch data: {e}"
+        print(f"[ERROR] Failed to fetch data: {e}")
+        return None
 
 if __name__ == "__main__":
-    live_json = fetch_live_bitcoin()
-    print("\n--- LIVE MARKET DATA ---\n")
-    print(live_json)
+    live_data = fetch_live_bitcoin()
+    if live_data:
+        print("\n--- LIVE MARKET DATA ---\n")
+        print(json.dumps(live_data, indent=4))
+    else:
+        print("Failed to fetch live data")

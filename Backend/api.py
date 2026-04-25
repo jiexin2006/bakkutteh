@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 from uuid import uuid4
 from typing import Any
+from live_data import fetch_live_bitcoin
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -233,23 +234,57 @@ def _profile_label(profile: dict[str, Any]) -> str:
 
 
 def _build_bitcoin_market_data() -> MarketData:
-    """Build a MarketData snapshot from the machine_learning CSV for Bitcoin fallback/model use."""
+    """Build MarketData: uses live MYR price, or ML-predicted price if unavailable."""
+
+    live_data = fetch_live_bitcoin()
+
     history_rows = BitcoinAnalyzer.load_training_history()
     latest_row = history_rows[-1] if history_rows else {}
 
-    bitcoin_price = float(latest_row.get("Close", 47500) or 47500)
-    bitcoin_7day_avg = float(latest_row.get("7_Day_MA", bitcoin_price) or bitcoin_price)
-    bitcoin_30day_avg = float(latest_row.get("30_Day_MA", bitcoin_price) or bitcoin_price)
+    # Load baseline historical data
+    bitcoin_price_usd = float(latest_row.get("Close", 47500) or 47500)
+    bitcoin_7day_avg = float(latest_row.get("7_Day_MA", bitcoin_price_usd) or bitcoin_price_usd)
+    bitcoin_30day_avg = float(latest_row.get("30_Day_MA", bitcoin_price_usd) or bitcoin_price_usd)
     bitcoin_daily_change = float(latest_row.get("7_Day_Momentum_%", latest_row.get("Daily_Volatility_%", 0.0)) or 0.0)
 
-    return MarketData(
-        bitcoin_price=bitcoin_price,
+    # Create baseline market data for the model
+    baseline_market_data = MarketData(
+        bitcoin_price=bitcoin_price_usd,
+        bitcoin_price_myr=bitcoin_price_usd * 4.5,
         bitcoin_daily_change=bitcoin_daily_change,
         bitcoin_7day_avg=bitcoin_7day_avg,
         bitcoin_30day_avg=bitcoin_30day_avg,
         fd_rates=FD_RATES,
         epf_interest_rate=EPF_INTEREST_RATE,
         timestamp=datetime.now(),
+        price_source="baseline",
+    )
+
+    # Determine price source: live data or ML prediction
+    if live_data and 'current_price_myr' in live_data:
+        # Use live price
+        final_price_usd = float(live_data.get('current_price_usd', bitcoin_price_usd))
+        final_price_myr = float(live_data['current_price_myr'])
+        price_source = "live"
+        print(f"[LIVE DATA] Using live Bitcoin price: RM{final_price_myr}")
+    else:
+        # Use ML model's predicted price
+        model_result = BitcoinAnalyzer.generate_model_result(baseline_market_data)
+        final_price_usd = float(model_result.forecast_price)
+        final_price_myr = final_price_usd * 4.5
+        price_source = "predicted"
+        print(f"[PREDICTED] Using ML model predicted price: RM{final_price_myr} (Live data unavailable)")
+
+    return MarketData(
+        bitcoin_price=final_price_usd,
+        bitcoin_price_myr=final_price_myr,
+        bitcoin_daily_change=bitcoin_daily_change,
+        bitcoin_7day_avg=bitcoin_7day_avg,
+        bitcoin_30day_avg=bitcoin_30day_avg,
+        fd_rates=FD_RATES,
+        epf_interest_rate=EPF_INTEREST_RATE,
+        timestamp=datetime.now(),
+        price_source=price_source,
     )
 
 

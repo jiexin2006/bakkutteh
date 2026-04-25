@@ -32,12 +32,14 @@ class RETIREMENT_TIER(Enum):
 class MarketData:
     """Current market conditions"""
     bitcoin_price: float
+    bitcoin_price_myr: float     # Bitcoin price in Malaysian Ringgit
     bitcoin_daily_change: float  # Percentage
     bitcoin_7day_avg: float      # 7-day moving average
     bitcoin_30day_avg: float     # 30-day moving average
     fd_rates: Dict[str, Dict[str, float]]  # Bank -> {period -> rate}
     epf_interest_rate: float
     timestamp: datetime
+    price_source: str = "unknown"  # "live" or "predicted"
 
 
 @dataclass

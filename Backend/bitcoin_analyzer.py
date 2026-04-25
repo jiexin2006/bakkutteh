@@ -366,6 +366,12 @@ class BitcoinAnalyzer:
         signal_label = f"{model_result.signal.value} Signal Active"
         if model_result.signal is BitcoinSignal.HOLD:
             signal_label = "HOLD Signal Active"
+        
+        # Create price status message
+        price_status = "Live Market Data"
+        if market_data.price_source == "predicted":
+            price_status = "Predicted Price (Live data currentlyunavailable)"
+        
         return {
             "bitcoin_signal": model_result.signal.value,
             "bitcoin_signal_label": signal_label,
@@ -374,6 +380,9 @@ class BitcoinAnalyzer:
             "forecast_change_pct": round(float(model_result.forecast_change_pct), 2),
             "forecast_price": round(float(model_result.forecast_price), 2),
             "current_price": round(float(model_result.current_price), 2),
+            "current_price_myr": round(float(market_data.bitcoin_price_myr), 2),
+            "price_source": market_data.price_source,
+            "price_status": price_status,
             "crypto_data": model_result.crypto_data,
             "model_source": model_result.model_source,
         }

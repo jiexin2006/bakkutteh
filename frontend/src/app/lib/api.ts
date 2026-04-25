@@ -81,6 +81,9 @@ export type BitcoinAdvisoryResponse = {
   forecast_change_pct: number;
   forecast_price: number;
   current_price: number;
+  current_price_myr: number;
+  price_source: string;
+  price_status: string;
   crypto_data: BitcoinAdvisoryPoint[];
   model_source: string;
 };

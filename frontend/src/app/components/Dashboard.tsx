@@ -201,8 +201,8 @@ export function Dashboard() {
       : "text-[#3EFFA3]";
 
   const currentBtcPriceLabel =
-    typeof bitcoinAdvisory?.current_price === "number"
-      ? `$${Math.round(bitcoinAdvisory.current_price).toLocaleString()}`
+    typeof bitcoinAdvisory?.current_price_myr === "number"
+      ? `RM${Math.round(bitcoinAdvisory.current_price_myr).toLocaleString()}`
       : "--";
 
   return (
@@ -419,7 +419,7 @@ export function Dashboard() {
                   </div>
                   <div>
                     <h2 className="text-2xl text-[#E8EDF3]">Crypto Intelligence</h2>
-                    <p className="text-sm text-[#8B92A8]">BTC/USD - Latest market snapshot</p>
+                    <p className="text-sm text-[#8B92A8]">BTC/MYR - Latest market snapshot</p>
                   </div>
                 </div>
                 <div className="text-right">
@@ -431,6 +431,9 @@ export function Dashboard() {
                     <span>
                       {bitcoinAdvisory ? `${bitcoinAdvisory.forecast_change_pct >= 0 ? "+" : ""}${bitcoinAdvisory.forecast_change_pct.toFixed(2)}%` : "Loading..."}
                     </span>
+                  </div>
+                  <div className={`text-xs mt-2 ${bitcoinAdvisory?.price_source === "predicted" ? "text-[#FFD166]" : "text-[#3EFFA3]"}`}>
+                    {bitcoinAdvisory?.price_status || "Loading..."}
                   </div>
                 </div>
               </div>
