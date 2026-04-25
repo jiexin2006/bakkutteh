@@ -130,10 +130,8 @@ export function AIAdvisory() {
   const salary = parseMoney(userData?.salary);
   const monthlyExpenses = parseMoney(userData?.monthlyExpenses);
   const monthlySurplus = Math.max(0, salary - monthlyExpenses);
-  const currentFD = parseMoney(userData?.currentFD);
-  const currentEPF = parseMoney(userData?.currentEPF);
-  const cryptoHoldings = parseMoney(userData?.cryptoHoldings);
-  const computedTotal = Math.max(0, currentFD + currentEPF + cryptoHoldings + monthlySurplus);
+  
+  const computedTotal = monthlySurplus;
 
   const modelActions: AdvisoryAction[] = advisoryResponse?.advisory_json?.action_plan || [];
   const sortedModelAllocations = modelActions
@@ -322,7 +320,7 @@ export function AIAdvisory() {
                 ))}
               </div>
               <div className="mt-6 p-4 bg-[rgba(255,255,255,0.03)] rounded-xl border border-[rgba(255,255,255,0.1)]">
-                <p className="text-sm text-[#8B92A8] mb-2">Total Portfolio</p>
+                <p className="text-sm text-[#8B92A8] mb-2">Total Monthly Allocation</p>
                 <p className="text-3xl text-[#E8EDF3]">RM{computedTotal.toLocaleString()}</p>
                 <div className="mt-3 flex items-center gap-2 text-[#3EFFA3] text-sm">
                   <TrendingUp className="w-4 h-4" />
