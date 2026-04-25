@@ -12,13 +12,13 @@ An AI-powered wealth management assistant that balances **financial security** (
 
 ## 📄 Documentation  
 ### Product Requirement Documentation (PRD)
-[Product Requirement Documentation (PRD)](docs/Bakkutteh_UMHackathon2026_Product_Requirement_Documentation.pdf)
+[Product Requirement Documentation (PRD)](https://drive.google.com/file/d/1GiCiEnwAKrbZuhnHU6FVOM9-A7nPGtQq/view?usp=drive_link)
 
 ### System Analysis Documentation
-[System Analysis Documentation](docs/Bakkutteh_UMHackathon2026_System_Analysis_Documentation.pdf)
+[System Analysis Documentation](https://drive.google.com/file/d/159IaUnQ4VpCEYtGcHWzPpK5iSv1IRXdD/view?usp=drive_link)
 
 ### Sample Testing Analysis (Preliminary)
-[Sample Testing Analysis (Preliminary)](docs/Bakkutteh_UMHackathon2026_Sample_Testing_Analysis_Documentation_Preliminary.pdf)
+[Sample Testing Analysis (Preliminary)](https://drive.google.com/file/d/1S8udVotqi3N2ueJG4FTpvbPBiVjJIOMz/view?usp=drive_link)
 
 ---
 
